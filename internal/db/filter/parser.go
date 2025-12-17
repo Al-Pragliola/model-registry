@@ -33,50 +33,75 @@ var sqlLexer = lexer.MustSimple([]lexer.SimpleRule{
 
 // Global parser instance - built once, reused everywhere (thread-safe)
 var (
-	globalParser *participle.Parser[WhereClause]
+	globalParser *participle.Parser[FilterRoot]
 	parserOnce   sync.Once
 )
 
 // initParser builds the parser, called in getParser using sync.Once for thread safety
 func initParser() {
-	globalParser = participle.MustBuild[WhereClause](
+	globalParser = participle.MustBuild[FilterRoot](
 		participle.Lexer(sqlLexer),
 		participle.Elide("whitespace", "Comment"),
-		participle.CaseInsensitive("OR", "AND", "LIKE", "ILIKE", "IN", "true", "false", "TRUE", "FALSE"),
+		participle.CaseInsensitive("OR", "AND", "LIKE", "ILIKE", "IN", "true", "false"),
 		participle.CaseInsensitive(StringValueType, DoubleValueType, IntValueType, BoolValueType, ArrayValueType),
 	)
 }
 
 // getParser returns the singleton parser instance (thread-safe)
-func getParser() *participle.Parser[WhereClause] {
+func getParser() *participle.Parser[FilterRoot] {
 	parserOnce.Do(initParser)
 	return globalParser
 }
 
-// Grammar structures for SQL WHERE clauses
+// Grammar structures for filter expressions.
+//
+// The grammar implements operator precedence through a hierarchy of types:
+//
+//	FilterRoot
+//	  └── Expression
+//	        └── OrExpression    (lowest precedence - evaluated last)
+//	              └── AndExpression  (higher precedence - evaluated first)
+//	                    └── Term (comparison or parenthesized group)
+//
+// This ensures AND binds tighter than OR, so:
+//
+//	"a = 1 OR b = 2 AND c = 3" is parsed as "a = 1 OR (b = 2 AND c = 3)"
+//
+// Even simple expressions like "name = 'test'" flow through the full hierarchy,
+// just with empty Right slices at each level.
 
 //nolint:govet
-type WhereClause struct {
+type FilterRoot struct {
 	Expression *Expression `@@`
 }
 
+// Expression is the top-level grammar rule, delegating to OrExpression for precedence handling.
+//
 //nolint:govet
 type Expression struct {
 	Or *OrExpression `@@`
 }
 
+// OrExpression handles OR operators (lowest precedence).
+// Left is always present; Right contains additional AND-expressions joined by OR.
+//
 //nolint:govet
 type OrExpression struct {
 	Left  *AndExpression   `@@`
 	Right []*AndExpression `("OR" @@)*`
 }
 
+// AndExpression handles AND operators (higher precedence than OR).
+// Left is always present; Right contains additional terms joined by AND.
+//
 //nolint:govet
 type AndExpression struct {
 	Left  *Term   `@@`
 	Right []*Term `("AND" @@)*`
 }
 
+// Term is either a parenthesized sub-expression (Group) or a leaf Comparison.
+//
 //nolint:govet
 type Term struct {
 	Group      *Expression `"(" @@ ")"`
@@ -126,7 +151,7 @@ type FilterExpression struct {
 	Right    *FilterExpression
 	Operator string
 	Property string
-	Value    interface{}
+	Value    any
 	IsLeaf   bool
 }
 
@@ -148,19 +173,15 @@ func Parse(input string) (*FilterExpression, error) {
 	}
 
 	parser := getParser()
-	whereClause, err := parser.ParseString("", input)
+	filterRoot, err := parser.ParseString("", input)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing filter query: %w", err)
 	}
 
-	return convertToFilterExpression(whereClause.Expression), nil
+	return convertOrExpression(filterRoot.Expression.Or), nil
 }
 
-// convertToFilterExpression converts the participle AST to our FilterExpression
-func convertToFilterExpression(expr *Expression) *FilterExpression {
-	return convertOrExpression(expr.Or)
-}
-
+// convertOrExpression converts the participle AST OrExpression to our FilterExpression
 func convertOrExpression(expr *OrExpression) *FilterExpression {
 	left := convertAndExpression(expr.Left)
 
@@ -195,7 +216,7 @@ func convertAndExpression(expr *AndExpression) *FilterExpression {
 
 func convertTerm(term *Term) *FilterExpression {
 	if term.Group != nil {
-		return convertToFilterExpression(term.Group)
+		return convertOrExpression(term.Group.Or)
 	}
 
 	return convertComparison(term.Comparison)
