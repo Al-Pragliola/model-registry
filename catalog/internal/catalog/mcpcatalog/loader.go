@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sync"
 
 	mapset "github.com/deckarep/golang-set/v2"
@@ -37,9 +36,11 @@ var ErrMCPPartiallyAvailable error = &MCPPartiallyAvailableError{}
 type MCPLoaderEventHandler func(ctx context.Context, record MCPServerProviderRecord) error
 
 // MCPLoader handles loading MCP servers from YAML configuration files.
-// It uses external state (LoaderState) for leader operations and write tracking.
+// It uses external state (LoaderState) for leader operations and write tracking,
+// and embeds a DelegateLoader for common config parsing and source merging.
 type MCPLoader struct {
-	state basecatalog.LoaderState
+	state    basecatalog.LoaderState
+	delegate *basecatalog.DelegateLoader[basecatalog.MCPSource]
 
 	// Sources contains current MCP source information loaded from the configuration files.
 	Sources *MCPSourceCollection
@@ -65,11 +66,24 @@ func (ml *MCPLoader) setCloser(closer func()) {
 // NewMCPLoaderWithState creates a new MCP loader with external state
 func NewMCPLoaderWithState(services service.Services, state basecatalog.LoaderState) *MCPLoader {
 	paths := state.Paths()
-	return &MCPLoader{
+	sources := NewMCPSourceCollection(paths...)
+
+	loader := &MCPLoader{
 		state:    state,
-		Sources:  NewMCPSourceCollection(paths...),
+		Sources:  sources,
 		services: services,
 	}
+
+	loader.delegate = basecatalog.NewDelegateLoader(state, basecatalog.DelegateLoaderConfig[basecatalog.MCPSource]{
+		Name:             "MCP",
+		SourceCollection: sources.GenericSourceCollection,
+		ExtractSources:   loader.extractMCPSources,
+		ExtractNamedQueries: func(config *basecatalog.SourceConfig) map[string]map[string]basecatalog.FieldFilter {
+			return config.NamedQueries
+		},
+	})
+
+	return loader
 }
 
 // RegisterEventHandler adds a function that will be called for every
@@ -81,16 +95,7 @@ func (ml *MCPLoader) RegisterEventHandler(fn MCPLoaderEventHandler) {
 // ParseAllConfigs parses all config files into in-memory collections.
 // This is called by the unified loader during initialization.
 func (ml *MCPLoader) ParseAllConfigs() error {
-	glog.Info("Initializing MCP loader - parsing configs")
-
-	for _, path := range ml.state.Paths() {
-		if err := ml.parseAndMerge(path); err != nil {
-			return fmt.Errorf("failed to parse MCP config %s: %w", path, err)
-		}
-	}
-
-	glog.Info("MCP loader config parsing complete")
-	return nil
+	return ml.delegate.ParseAllConfigs()
 }
 
 // PerformLeaderOperations executes database write operations.
@@ -119,52 +124,31 @@ func (ml *MCPLoader) PerformLeaderOperations(ctx context.Context, allKnownSource
 // ReloadParsing re-parses all config files into in-memory collections.
 // Called by the unified loader before computing combined source IDs for leader writes.
 func (ml *MCPLoader) ReloadParsing() {
-	for _, path := range ml.state.Paths() {
-		if err := ml.parseAndMerge(path); err != nil {
-			glog.Errorf("unable to reload MCP sources from %s: %v", path, err)
-		}
-	}
+	ml.delegate.ReloadParsing()
 }
 
-// parseAndMerge parses a config file and merges its MCP sources into the collection.
-func (ml *MCPLoader) parseAndMerge(path string) error {
-	path, err := filepath.Abs(path)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for %s: %v", path, err)
-	}
-
-	config, err := basecatalog.ReadSourceConfig(path)
-	if err != nil {
-		return err
-	}
-
-	return ml.updateSources(path, config)
-}
-
-// updateSources merges MCP catalog sources from the config into the Sources collection.
-func (ml *MCPLoader) updateSources(path string, config *basecatalog.SourceConfig) error {
+// extractMCPSources extracts MCP source definitions from a parsed SourceConfig.
+// This is the pluggable function provided to DelegateLoader.
+func (ml *MCPLoader) extractMCPSources(config *basecatalog.SourceConfig, origin string) (map[string]basecatalog.MCPSource, error) {
 	sources := make(map[string]basecatalog.MCPSource, len(config.MCPCatalogs))
 
 	for _, source := range config.MCPCatalogs {
 		glog.Infof("reading MCP catalog config type %s...", source.Type)
 		if source.ID == "" {
-			return fmt.Errorf("invalid MCP source: missing id")
+			return nil, fmt.Errorf("invalid MCP source: missing id")
 		}
 		if _, exists := sources[source.ID]; exists {
-			return fmt.Errorf("invalid MCP source: duplicate id %s", source.ID)
+			return nil, fmt.Errorf("invalid MCP source: duplicate id %s", source.ID)
 		}
 
 		// Set the origin path so relative paths in properties can be resolved
 		// relative to this config file's directory
-		source.Origin = path
+		source.Origin = origin
 		sources[source.ID] = source
 		glog.Infof("loaded MCP source %s of type %s", source.ID, source.Type)
 	}
 
-	if config.NamedQueries != nil {
-		return ml.Sources.MergeWithNamedQueries(path, sources, config.NamedQueries)
-	}
-	return ml.Sources.Merge(path, sources)
+	return sources, nil
 }
 
 // loadAllServers loads MCP servers from all configured sources

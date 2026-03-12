@@ -383,7 +383,14 @@ func TestLoadCatalogSourcesWithMockRepositories(t *testing.T) {
 	ctx := context.Background()
 
 	// First call updateSources to populate the SourceCollection
-	err := l.updateSources("test-path", testConfig)
+	err := func() error {
+		sources := make(map[string]basecatalog.ModelSource, len(testConfig.ModelCatalogs))
+		for _, s := range testConfig.GetModelCatalogs() {
+			s.Origin = "test-path"
+			sources[s.GetId()] = s
+		}
+		return l.Sources.Merge("test-path", sources)
+	}()
 	if err != nil {
 		t.Fatalf("updateSources() error = %v", err)
 	}
@@ -496,7 +503,14 @@ func TestLoadCatalogSourcesWithRepositoryErrors(t *testing.T) {
 	ctx := context.Background()
 
 	// First call updateSources to populate the SourceCollection
-	err := l.updateSources("test-path", testConfig)
+	err := func() error {
+		sources := make(map[string]basecatalog.ModelSource, len(testConfig.ModelCatalogs))
+		for _, s := range testConfig.GetModelCatalogs() {
+			s.Origin = "test-path"
+			sources[s.GetId()] = s
+		}
+		return l.Sources.Merge("test-path", sources)
+	}()
 	if err != nil {
 		t.Fatalf("updateSources() error = %v", err)
 	}
@@ -575,7 +589,14 @@ func TestLoadCatalogSourcesWithNilEnabled(t *testing.T) {
 	ctx := context.Background()
 
 	// First call updateSources to populate the SourceCollection
-	err := l.updateSources("test-path", testConfig)
+	err := func() error {
+		sources := make(map[string]basecatalog.ModelSource, len(testConfig.ModelCatalogs))
+		for _, s := range testConfig.GetModelCatalogs() {
+			s.Origin = "test-path"
+			sources[s.GetId()] = s
+		}
+		return l.Sources.Merge("test-path", sources)
+	}()
 	if err != nil {
 		t.Fatalf("updateSources() error = %v", err)
 	}

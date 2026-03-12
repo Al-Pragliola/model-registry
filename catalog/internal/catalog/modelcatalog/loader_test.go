@@ -299,7 +299,14 @@ func TestLoader_StartWithLeaderElection(t *testing.T) {
 		loader := NewModelLoader(services, baseLoader)
 
 		// Populate sources
-		err := loader.updateSources("test-path", testConfig)
+		err := func() error {
+		sources := make(map[string]basecatalog.ModelSource, len(testConfig.ModelCatalogs))
+		for _, s := range testConfig.GetModelCatalogs() {
+			s.Origin = "test-path"
+			sources[s.GetId()] = s
+		}
+		return loader.Sources.Merge("test-path", sources)
+	}()
 		assert.NoError(t, err)
 
 		// In standby mode (read-only), just parse configs without becoming leader
@@ -329,7 +336,14 @@ func TestLoader_StartWithLeaderElection(t *testing.T) {
 		ctx := context.Background()
 
 		// Populate sources
-		err := loader.updateSources("test-path", testConfig)
+		err := func() error {
+		sources := make(map[string]basecatalog.ModelSource, len(testConfig.ModelCatalogs))
+		for _, s := range testConfig.GetModelCatalogs() {
+			s.Origin = "test-path"
+			sources[s.GetId()] = s
+		}
+		return loader.Sources.Merge("test-path", sources)
+	}()
 		assert.NoError(t, err)
 
 		// Parse configs first

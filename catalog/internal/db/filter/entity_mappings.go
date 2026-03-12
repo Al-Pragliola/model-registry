@@ -3,87 +3,23 @@ package filter
 import (
 	"strings"
 
+	"github.com/kubeflow/model-registry/catalog/internal/catalog/basecatalog"
 	catalogmodels "github.com/kubeflow/model-registry/catalog/internal/db/models"
 	"github.com/kubeflow/model-registry/internal/db/filter"
 )
 
-// catalogEntityMappings implements EntityMappingFunctions for the catalog package
-type catalogEntityMappings struct{}
+// catalogEntityMappings wraps a CatalogEntityRegistry and adds catalog-specific
+// behaviors like equality expansion for externalId.
+type catalogEntityMappings struct {
+	*basecatalog.CatalogEntityRegistry
+}
 
 // NewCatalogEntityMappings creates a new instance of catalog entity mappings
+// using the declarative CatalogEntityRegistry.
 func NewCatalogEntityMappings() filter.EntityMappingFunctions {
-	return &catalogEntityMappings{}
-}
-
-// GetMLMDEntityType maps catalog REST entity types to their underlying MLMD entity type
-func (c *catalogEntityMappings) GetMLMDEntityType(restEntityType filter.RestEntityType) filter.EntityType {
-	switch restEntityType {
-	case filter.RestEntityType(catalogmodels.RestEntityCatalogArtifact):
-		return filter.EntityTypeArtifact
-	case filter.RestEntityType(catalogmodels.RestEntityMCPServerTool):
-		return filter.EntityTypeExecution
-	default:
-		return filter.EntityTypeContext
+	return &catalogEntityMappings{
+		CatalogEntityRegistry: buildCatalogRegistry(),
 	}
-}
-
-// GetPropertyDefinitionForRestEntity returns property definition for a catalog REST entity type
-func (c *catalogEntityMappings) GetPropertyDefinitionForRestEntity(restEntityType filter.RestEntityType, propertyName string) filter.PropertyDefinition {
-	// Check if this is a well-known property for catalog entities
-	if restEntityType == filter.RestEntityType(catalogmodels.RestEntityCatalogModel) {
-		if _, isWellKnown := catalogModelProperties[propertyName]; isWellKnown {
-			// Use the well-known property definition
-			return catalogModelProperties[propertyName]
-		}
-
-		// Check if this is a property path referencing a related artifact
-		// Format: artifacts.<propertyName> or artifacts.customProperties.<propertyName>
-		if artifactPropertyPath, found := strings.CutPrefix(propertyName, "artifacts."); found {
-			// Return a RelatedEntity property definition
-			// ValueType is left empty to allow runtime type inference from the value
-			return filter.PropertyDefinition{
-				Location:          filter.RelatedEntity,
-				ValueType:         "", // Empty to enable runtime type inference
-				Column:            artifactPropertyPath,
-				RelatedEntityType: filter.RelatedEntityArtifact,
-				RelatedProperty:   artifactPropertyPath,
-				JoinTable:         "Attribution", // Join through Attribution table
-			}
-		}
-	}
-
-	if restEntityType == filter.RestEntityType(catalogmodels.RestEntityCatalogArtifact) {
-		if _, isWellKnown := catalogArtifactProperties[propertyName]; isWellKnown {
-			// Use the well-known property definition
-			return catalogArtifactProperties[propertyName]
-		}
-	}
-
-	if restEntityType == filter.RestEntityType(catalogmodels.RestEntityMCPServer) {
-		if _, isWellKnown := mcpServerProperties[propertyName]; isWellKnown {
-			// Use the well-known property definition
-			return mcpServerProperties[propertyName]
-		}
-	}
-
-	if restEntityType == filter.RestEntityType(catalogmodels.RestEntityMCPServerTool) {
-		if _, isWellKnown := mcpServerToolProperties[propertyName]; isWellKnown {
-			// Use the well-known property definition
-			return mcpServerToolProperties[propertyName]
-		}
-	}
-
-	// Not a well-known property for this entity type, treat as custom
-	return filter.PropertyDefinition{
-		Location:  filter.Custom,
-		ValueType: filter.StringValueType, // Default, will be inferred at runtime
-		Column:    propertyName,           // Use the property name as-is for custom properties
-	}
-}
-
-// IsChildEntity returns true if the catalog REST entity type uses prefixed names (parentId:name)
-func (c *catalogEntityMappings) IsChildEntity(entityType filter.RestEntityType) bool {
-	return false
 }
 
 // GetEqualityExpansion implements filter.EqualityExpander so externalId = "x" matches both
@@ -115,93 +51,94 @@ func escapeLike(s string) string {
 	return b.String()
 }
 
-// catalogModelProperties defines the allowed properties for CatalogModel entities
-var catalogModelProperties = map[string]filter.PropertyDefinition{
-	// Common Context properties
-	"id":                       {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "id"},
-	"name":                     {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "name"},
-	"externalId":               {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "external_id"},
-	"createTimeSinceEpoch":     {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "create_time_since_epoch"},
-	"lastUpdateTimeSinceEpoch": {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "last_update_time_since_epoch"},
+// buildCatalogRegistry creates and populates a CatalogEntityRegistry with all
+// catalog entity type definitions. This replaces the previous hand-coded
+// switch/if chains with declarative registration.
+func buildCatalogRegistry() *basecatalog.CatalogEntityRegistry {
+	reg := basecatalog.NewCatalogEntityRegistry()
 
-	// CatalogModel-specific properties stored in ContextProperty table
-	"source_id":      {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "source_id"},
-	"description":    {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "description"},
-	"owner":          {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "owner"},
-	"state":          {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "state"},
-	"language":       {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "language"},
-	"library_name":   {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "library_name"},
-	"license_link":   {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "license_link"},
-	"license":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "license"},
-	"logo":           {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "logo"},
-	"maturity":       {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "maturity"},
-	"provider":       {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "provider"},
-	"readme":         {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "readme"},
-	"tasks":          {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "tasks"},
-	"tags":           {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "tags"},
-	"verifiedSource": {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "verifiedSource"},
-}
+	// CatalogModel (Context entity)
+	reg.Register(filter.RestEntityType(catalogmodels.RestEntityCatalogModel), basecatalog.EntityTypeDefinition{
+		MLMDEntityType: filter.EntityTypeContext,
+		Properties: basecatalog.MergeProperties(
+			basecatalog.CommonContextProperties(),
+			basecatalog.CommonCatalogContextProperties(),
+			map[string]filter.PropertyDefinition{
+				"owner":          {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "owner"},
+				"state":          {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "state"},
+				"language":       {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "language"},
+				"library_name":   {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "library_name"},
+				"maturity":       {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "maturity"},
+				"tasks":          {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "tasks"},
+				"tags":           {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "tags"},
+				"verifiedSource": {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "verifiedSource"},
+			},
+		),
+		IsChild:                false,
+		RelatedEntityPrefix:    "artifacts.",
+		RelatedEntityType:      filter.RelatedEntityArtifact,
+		RelatedEntityJoinTable: "Attribution",
+	})
 
-// catalogArtifactProperties defines the allowed properties for CatalogArtifact entities
-var catalogArtifactProperties = map[string]filter.PropertyDefinition{
-	// Common Artifact properties
-	"id":                       {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "id"},
-	"name":                     {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "name"},
-	"externalId":               {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "external_id"},
-	"createTimeSinceEpoch":     {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "create_time_since_epoch"},
-	"lastUpdateTimeSinceEpoch": {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "last_update_time_since_epoch"},
-	"uri":                      {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "uri"},
-	"state":                    {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "state"},
+	// CatalogArtifact (Artifact entity)
+	reg.Register(filter.RestEntityType(catalogmodels.RestEntityCatalogArtifact), basecatalog.EntityTypeDefinition{
+		MLMDEntityType: filter.EntityTypeArtifact,
+		Properties: basecatalog.MergeProperties(
+			basecatalog.CommonArtifactProperties(),
+			map[string]filter.PropertyDefinition{
+				"artifactType": {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "artifactType"},
+			},
+		),
+		IsChild: false,
+	})
 
-	// Artifact type (stored in type_id but we can filter by string representation)
-	"artifactType": {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "artifactType"},
-}
+	// MCPServer (Context entity)
+	reg.Register(filter.RestEntityType(catalogmodels.RestEntityMCPServer), basecatalog.EntityTypeDefinition{
+		MLMDEntityType: filter.EntityTypeContext,
+		Properties: basecatalog.MergeProperties(
+			basecatalog.CommonContextProperties(),
+			basecatalog.CommonCatalogContextProperties(),
+			map[string]filter.PropertyDefinition{
+				"base_name":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "base_name"},
+				"name":             {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "base_name"},
+				"version":          {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "version"},
+				"tags":             {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "tags"},
+				"transports":       {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "transports"},
+				"deploymentMode":   {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "deploymentMode"},
+				"documentationUrl": {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "documentationUrl"},
+				"repositoryUrl":    {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "repositoryUrl"},
+				"sourceCode":       {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "sourceCode"},
+				"publishedDate":    {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "publishedDate"},
+				"lastUpdated":      {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "lastUpdated"},
+				"verifiedSource":   {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "verifiedSource"},
+				"secureEndpoint":   {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "secureEndpoint"},
+				"sast":             {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "sast"},
+				"readOnlyTools":    {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "readOnlyTools"},
+				"endpoints":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "endpoints"},
+				"artifacts":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "artifacts"},
+				"runtimeMetadata":  {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "runtimeMetadata"},
+			},
+		),
+		IsChild: false,
+	})
 
-// mcpServerProperties defines the allowed properties for MCPServer entities.
-var mcpServerProperties = map[string]filter.PropertyDefinition{
-	// Common Context properties (Entity Table - required)
-	"id":                       {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "id"},
-	"name":                     {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "base_name"},
-	"externalId":               {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "external_id"},
-	"createTimeSinceEpoch":     {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "create_time_since_epoch"},
-	"lastUpdateTimeSinceEpoch": {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "last_update_time_since_epoch"},
+	// MCPServerTool (Execution entity)
+	reg.Register(filter.RestEntityType(catalogmodels.RestEntityMCPServerTool), basecatalog.EntityTypeDefinition{
+		MLMDEntityType: filter.EntityTypeExecution,
+		Properties: basecatalog.MergeProperties(
+			map[string]filter.PropertyDefinition{
+				"id":                       {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "id"},
+				"name":                     {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "name"},
+				"createTimeSinceEpoch":     {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "create_time_since_epoch"},
+				"lastUpdateTimeSinceEpoch": {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "last_update_time_since_epoch"},
+			},
+			map[string]filter.PropertyDefinition{
+				"description": {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "description"},
+				"accessType":  {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "accessType"},
+			},
+		),
+		IsChild: false,
+	})
 
-	// MCPServer-specific properties stored in ContextProperty table
-	"source_id":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "source_id"},
-	"base_name":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "base_name"},
-	"description":      {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "description"},
-	"provider":         {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "provider"},
-	"license":          {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "license"},
-	"license_link":     {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "license_link"},
-	"logo":             {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "logo"},
-	"readme":           {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "readme"},
-	"version":          {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "version"},
-	"tags":             {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "tags"},
-	"transports":       {Location: filter.PropertyTable, ValueType: filter.ArrayValueType, Column: "transports"},
-	"deploymentMode":   {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "deploymentMode"},
-	"documentationUrl": {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "documentationUrl"},
-	"repositoryUrl":    {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "repositoryUrl"},
-	"sourceCode":       {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "sourceCode"},
-	"publishedDate":    {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "publishedDate"},
-	"lastUpdated":      {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "lastUpdated"},
-	"verifiedSource":   {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "verifiedSource"},
-	"secureEndpoint":   {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "secureEndpoint"},
-	"sast":             {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "sast"},
-	"readOnlyTools":    {Location: filter.PropertyTable, ValueType: filter.BoolValueType, Column: "readOnlyTools"},
-	"endpoints":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "endpoints"},
-	"artifacts":        {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "artifacts"},
-	"runtimeMetadata":  {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "runtimeMetadata"},
-}
-
-// mcpServerToolProperties defines the allowed properties for MCPServerTool entities
-var mcpServerToolProperties = map[string]filter.PropertyDefinition{
-	// Common Execution properties (Entity Table - required)
-	"id":                       {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "id"},
-	"name":                     {Location: filter.EntityTable, ValueType: filter.StringValueType, Column: "name"},
-	"createTimeSinceEpoch":     {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "create_time_since_epoch"},
-	"lastUpdateTimeSinceEpoch": {Location: filter.EntityTable, ValueType: filter.IntValueType, Column: "last_update_time_since_epoch"},
-
-	// MCPServerTool-specific properties stored in ExecutionProperty table
-	"description": {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "description"},
-	"accessType":  {Location: filter.PropertyTable, ValueType: filter.StringValueType, Column: "accessType"},
+	return reg
 }

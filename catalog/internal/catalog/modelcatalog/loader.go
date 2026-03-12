@@ -65,9 +65,11 @@ func RegisterModelProvider(name string, callback ModelProviderFunc) error {
 type LoaderEventHandler func(ctx context.Context, record ModelProviderRecord) error
 
 // ModelLoader is the delegate loader for model catalogs.
-// It uses external state (LoaderState) for leader operations and write tracking.
+// It uses external state (LoaderState) for leader operations and write tracking,
+// and embeds a DelegateLoader for common config parsing and source merging.
 type ModelLoader struct {
-	state basecatalog.LoaderState
+	state    basecatalog.LoaderState
+	delegate *basecatalog.DelegateLoader[basecatalog.ModelSource]
 
 	// Sources contains current source information loaded from the configuration files.
 	Sources *SourceCollection
@@ -95,13 +97,26 @@ func NewModelLoader(services service.Services, state basecatalog.LoaderState) *M
 		absPaths = append(absPaths, absPath)
 	}
 
-	return &ModelLoader{
+	sources := NewSourceCollection(absPaths...)
+
+	ml := &ModelLoader{
 		state:         state,
-		Sources:       NewSourceCollection(absPaths...),
+		Sources:       sources,
 		Labels:        NewLabelCollection(),
 		services:      services,
 		loadedSources: map[string]bool{},
 	}
+
+	ml.delegate = basecatalog.NewDelegateLoader(state, basecatalog.DelegateLoaderConfig[basecatalog.ModelSource]{
+		Name:             "model",
+		SourceCollection: sources.GenericSourceCollection,
+		ExtractSources:   ml.extractModelSources,
+		ExtractNamedQueries: func(config *basecatalog.SourceConfig) map[string]map[string]basecatalog.FieldFilter {
+			return config.NamedQueries
+		},
+	})
+
+	return ml
 }
 
 // RegisterEventHandler adds a function that will be called for every
@@ -114,9 +129,15 @@ func (l *ModelLoader) RegisterEventHandler(fn LoaderEventHandler) {
 
 // ParseAllConfigs parses all config files into in-memory collections.
 // This is called by the unified loader during initialization.
+// It delegates source parsing to the DelegateLoader and handles labels separately.
 func (l *ModelLoader) ParseAllConfigs() error {
+	// Parse sources via DelegateLoader
+	if err := l.delegate.ParseAllConfigs(); err != nil {
+		return err
+	}
+	// Parse labels (model-specific)
 	for _, path := range l.state.Paths() {
-		if err := l.parseAndMerge(path); err != nil {
+		if err := l.parseLabels(path); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
 	}
@@ -134,9 +155,12 @@ func (l *ModelLoader) PerformLeaderOperations(ctx context.Context, allKnownSourc
 // ReloadParsing re-parses all config files into in-memory collections.
 // Called by the unified loader before computing combined source IDs for leader writes.
 func (l *ModelLoader) ReloadParsing() {
+	// Reload sources via DelegateLoader
+	l.delegate.ReloadParsing()
+	// Reload labels (model-specific)
 	for _, path := range l.state.Paths() {
-		if err := l.parseAndMerge(path); err != nil {
-			glog.Errorf("unable to reload model sources from %s: %v", path, err)
+		if err := l.parseLabels(path); err != nil {
+			glog.Errorf("unable to reload model labels from %s: %v", path, err)
 		}
 	}
 }
@@ -150,19 +174,53 @@ func (l *ModelLoader) performLeaderWrites(ctx context.Context, allKnownSourceIDs
 	return l.loadAllModels(ctx)
 }
 
-// parseAndMerge parses a config file and merges its sources/labels into the collections.
-func (l *ModelLoader) parseAndMerge(path string) error {
+// extractModelSources extracts model source definitions from a parsed SourceConfig.
+// This is the pluggable function provided to DelegateLoader.
+func (l *ModelLoader) extractModelSources(config *basecatalog.SourceConfig, origin string) (map[string]basecatalog.ModelSource, error) {
+	// Validate named queries if present
+	if config.NamedQueries != nil {
+		if err := basecatalog.ValidateNamedQueries(config.NamedQueries); err != nil {
+			return nil, fmt.Errorf("invalid named queries in %s: %w", origin, err)
+		}
+	}
+
+	modelCatalogs := config.GetModelCatalogs()
+	sources := make(map[string]basecatalog.ModelSource, len(modelCatalogs))
+
+	for _, source := range modelCatalogs {
+		glog.Infof("reading config type %s...", source.Type)
+		id := source.GetId()
+		if len(id) == 0 {
+			return nil, fmt.Errorf("invalid source: missing id")
+		}
+		if _, exists := sources[id]; exists {
+			return nil, fmt.Errorf("invalid source: duplicate id %s", id)
+		}
+
+		// Validate includedModels/excludedModels patterns early (only if set)
+		if err := ValidateSourceFilters(source.IncludedModels, source.ExcludedModels); err != nil {
+			return nil, fmt.Errorf("invalid source %s: %w", id, err)
+		}
+
+		// Set the origin path so relative paths in properties can be resolved
+		// relative to this config file's directory
+		source.Origin = origin
+		sources[id] = source
+		glog.Infof("loaded source %s of type %s", id, source.Type)
+	}
+
+	return sources, nil
+}
+
+// parseLabels parses labels from a config file (model-specific).
+func (l *ModelLoader) parseLabels(path string) error {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path for %s: %v", path, err)
 	}
 
-	config, err := l.read(path)
+	config, err := basecatalog.ReadSourceConfig(path)
 	if err != nil {
-		return err
-	}
-
-	if err = l.updateSources(path, config); err != nil {
 		return err
 	}
 
@@ -173,60 +231,6 @@ func (l *ModelLoader) loadAllModels(ctx context.Context) error {
 	l.loadedSources = map[string]bool{}
 
 	return l.updateDatabase(ctx)
-}
-
-func (l *ModelLoader) read(path string) (*basecatalog.SourceConfig, error) {
-	config, err := basecatalog.ReadSourceConfig(path)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate named queries if present
-	if config.NamedQueries != nil {
-		if err := basecatalog.ValidateNamedQueries(config.NamedQueries); err != nil {
-			return nil, fmt.Errorf("invalid named queries in %s: %w", path, err)
-		}
-	}
-
-	// Note: We intentionally do NOT filter disabled sources or apply defaults here.
-	// This allows field-level merging in SourceCollection to work correctly:
-	// - A base source with enabled=false can be enabled by a user override with just id + enabled=true
-	// - Defaults are applied after merging in SourceCollection.merged()
-
-	return config, nil
-}
-
-func (l *ModelLoader) updateSources(path string, config *basecatalog.SourceConfig) error {
-	modelCatalogs := config.GetModelCatalogs()
-	sources := make(map[string]basecatalog.ModelSource, len(modelCatalogs))
-
-	for _, source := range modelCatalogs {
-		glog.Infof("reading config type %s...", source.Type)
-		id := source.GetId()
-		if len(id) == 0 {
-			return fmt.Errorf("invalid source: missing id")
-		}
-		if _, exists := sources[id]; exists {
-			return fmt.Errorf("invalid source: duplicate id %s", id)
-		}
-
-		// Validate includedModels/excludedModels patterns early (only if set)
-		if err := ValidateSourceFilters(source.IncludedModels, source.ExcludedModels); err != nil {
-			return fmt.Errorf("invalid source %s: %w", id, err)
-		}
-
-		// Set the origin path so relative paths in properties can be resolved
-		// relative to this config file's directory
-		source.Origin = path
-		sources[id] = source
-		glog.Infof("loaded source %s of type %s", id, source.Type)
-	}
-
-	// Use MergeWithNamedQueries if named queries exist, otherwise use regular Merge
-	if config.NamedQueries != nil {
-		return l.Sources.MergeWithNamedQueries(path, sources, config.NamedQueries)
-	}
-	return l.Sources.Merge(path, sources)
 }
 
 func (l *ModelLoader) updateLabels(path string, config *basecatalog.SourceConfig) error {
