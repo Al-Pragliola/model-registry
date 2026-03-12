@@ -33,8 +33,12 @@ type CatalogSource struct {
 	// Optional list of glob patterns for models to include. If specified, only models matching at least one pattern will be included. If omitted, all models are considered for inclusion.  Pattern Syntax: - Only the `*` wildcard is supported (matches zero or more characters) - Patterns are case-insensitive (e.g., `Granite/_*` matches `granite/model` and `GRANITE/model`) - Patterns match the entire model name (anchored at start and end) - Wildcards can appear anywhere: `Granite/_*`, `*-beta`, `*deprecated*`, `*_/old*`  Examples: - `ibm-granite/_*` - matches all models starting with \"ibm-granite/\" - `meta-llama/_*` - matches all models in the meta-llama namespace - `*` - matches all models  Constraints: - Patterns cannot be empty or whitespace-only - A pattern cannot appear in both includedModels and excludedModels
 	IncludedModels []string `json:"includedModels,omitempty"`
 	// Optional list of glob patterns for models to exclude. Models matching any pattern will be excluded even if they match an includedModels pattern. Exclusions take precedence over inclusions.  Pattern Syntax: - Only the `*` wildcard is supported (matches zero or more characters) - Patterns are case-insensitive - Patterns match the entire model name (anchored at start and end) - Wildcards can appear anywhere in the pattern  Examples: - `*-draft` - excludes all models ending with \"-draft\" - `*-experimental` - excludes experimental models - `*deprecated*` - excludes models with \"deprecated\" anywhere in the name - `*_/beta-*` - excludes models with \"/beta-\" in the path  Constraints: - Patterns cannot be empty or whitespace-only - A pattern cannot appear in both includedModels and excludedModels
-	ExcludedModels []string          `json:"excludedModels,omitempty"`
-	AssetType      *CatalogAssetType `json:"assetType,omitempty"`
+	ExcludedModels []string `json:"excludedModels,omitempty"`
+	// Optional list of glob patterns for MCP servers to include. If specified, only servers matching at least one pattern will be included. If omitted, all servers are considered for inclusion. Only applies to sources with assetType \"mcp_servers\".  Pattern Syntax: - Only the `*` wildcard is supported (matches zero or more characters) - Patterns are case-insensitive (e.g., `GitHub-*` matches `github-mcp` and `GITHUB-MCP`) - Patterns match the entire server name (anchored at start and end) - Wildcards can appear anywhere: `github-*`, `*-mcp`, `*hub*`  Examples: - `github-*` - matches all servers starting with \"github-\" - `*-mcp` - matches all servers ending with \"-mcp\" - `*hub*` - matches servers with \"hub\" anywhere in the name  Constraints: - Patterns cannot be empty or whitespace-only - A pattern cannot appear in both includedServers and excludedServers
+	IncludedServers []string `json:"includedServers,omitempty"`
+	// Optional list of glob patterns for MCP servers to exclude. Servers matching any pattern will be excluded even if they match an includedServers pattern. Exclusions take precedence over inclusions. Only applies to sources with assetType \"mcp_servers\".  Pattern Syntax: - Only the `*` wildcard is supported (matches zero or more characters) - Patterns are case-insensitive - Patterns match the entire server name (anchored at start and end) - Wildcards can appear anywhere in the pattern  Examples: - `*-deprecated` - excludes all servers ending with \"-deprecated\" - `*-experimental` - excludes experimental servers - `*-alpha` - excludes alpha servers  Constraints: - Patterns cannot be empty or whitespace-only - A pattern cannot appear in both includedServers and excludedServers
+	ExcludedServers []string          `json:"excludedServers,omitempty"`
+	AssetType       *CatalogAssetType `json:"assetType,omitempty"`
 }
 
 type _CatalogSource CatalogSource
@@ -310,6 +314,70 @@ func (o *CatalogSource) SetExcludedModels(v []string) {
 	o.ExcludedModels = v
 }
 
+// GetIncludedServers returns the IncludedServers field value if set, zero value otherwise.
+func (o *CatalogSource) GetIncludedServers() []string {
+	if o == nil || IsNil(o.IncludedServers) {
+		var ret []string
+		return ret
+	}
+	return o.IncludedServers
+}
+
+// GetIncludedServersOk returns a tuple with the IncludedServers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CatalogSource) GetIncludedServersOk() ([]string, bool) {
+	if o == nil || IsNil(o.IncludedServers) {
+		return nil, false
+	}
+	return o.IncludedServers, true
+}
+
+// HasIncludedServers returns a boolean if a field has been set.
+func (o *CatalogSource) HasIncludedServers() bool {
+	if o != nil && !IsNil(o.IncludedServers) {
+		return true
+	}
+
+	return false
+}
+
+// SetIncludedServers gets a reference to the given []string and assigns it to the IncludedServers field.
+func (o *CatalogSource) SetIncludedServers(v []string) {
+	o.IncludedServers = v
+}
+
+// GetExcludedServers returns the ExcludedServers field value if set, zero value otherwise.
+func (o *CatalogSource) GetExcludedServers() []string {
+	if o == nil || IsNil(o.ExcludedServers) {
+		var ret []string
+		return ret
+	}
+	return o.ExcludedServers
+}
+
+// GetExcludedServersOk returns a tuple with the ExcludedServers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *CatalogSource) GetExcludedServersOk() ([]string, bool) {
+	if o == nil || IsNil(o.ExcludedServers) {
+		return nil, false
+	}
+	return o.ExcludedServers, true
+}
+
+// HasExcludedServers returns a boolean if a field has been set.
+func (o *CatalogSource) HasExcludedServers() bool {
+	if o != nil && !IsNil(o.ExcludedServers) {
+		return true
+	}
+
+	return false
+}
+
+// SetExcludedServers gets a reference to the given []string and assigns it to the ExcludedServers field.
+func (o *CatalogSource) SetExcludedServers(v []string) {
+	o.ExcludedServers = v
+}
+
 // GetAssetType returns the AssetType field value if set, zero value otherwise.
 func (o *CatalogSource) GetAssetType() CatalogAssetType {
 	if o == nil || IsNil(o.AssetType) {
@@ -369,6 +437,12 @@ func (o CatalogSource) ToMap() (map[string]interface{}, error) {
 	}
 	if !IsNil(o.ExcludedModels) {
 		toSerialize["excludedModels"] = o.ExcludedModels
+	}
+	if !IsNil(o.IncludedServers) {
+		toSerialize["includedServers"] = o.IncludedServers
+	}
+	if !IsNil(o.ExcludedServers) {
+		toSerialize["excludedServers"] = o.ExcludedServers
 	}
 	if !IsNil(o.AssetType) {
 		toSerialize["assetType"] = o.AssetType

@@ -1,0 +1,35 @@
+mcp_catalogs:
+  # Source with inclusion filters — only approved servers are loaded
+  - name: "Approved MCP Servers"
+    id: approved_mcp_servers
+    type: yaml
+    enabled: true
+    includedServers:
+      - "github-*"
+      - "slack-*"
+      - "jira-*"
+    excludedServers:
+      - "*-deprecated"
+      - "*-experimental"
+      - "*-alpha"
+    properties:
+      yamlCatalogPath: dev-mcp-servers.yaml
+
+  # Source with only exclusions — all servers allowed except filtered
+  - name: "Community MCP Servers"
+    id: community_mcp_servers
+    type: yaml
+    enabled: true
+    excludedServers:
+      - "*-beta"
+      - "*-unstable"
+    properties:
+      yamlCatalogPath: dev-mcp-servers.yaml
+
+  # Source with no filters — all servers loaded
+  - name: "Internal MCP Servers"
+    id: internal_mcp_servers
+    type: yaml
+    enabled: true
+    properties:
+      yamlCatalogPath: dev-mcp-servers.yaml

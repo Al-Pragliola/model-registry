@@ -862,6 +862,52 @@ components:
           type: array
           items:
             type: string
+        includedServers:
+          description: |-
+            Optional list of glob patterns for MCP servers to include. If specified, only servers
+            matching at least one pattern will be included. If omitted, all servers are considered
+            for inclusion. Only applies to sources with assetType "mcp_servers".
+
+            Pattern Syntax:
+            - Only the `*` wildcard is supported (matches zero or more characters)
+            - Patterns are case-insensitive (e.g., `GitHub-*` matches `github-mcp` and `GITHUB-MCP`)
+            - Patterns match the entire server name (anchored at start and end)
+            - Wildcards can appear anywhere: `github-*`, `*-mcp`, `*hub*`
+
+            Examples:
+            - `github-*` - matches all servers starting with "github-"
+            - `*-mcp` - matches all servers ending with "-mcp"
+            - `*hub*` - matches servers with "hub" anywhere in the name
+
+            Constraints:
+            - Patterns cannot be empty or whitespace-only
+            - A pattern cannot appear in both includedServers and excludedServers
+          type: array
+          items:
+            type: string
+        excludedServers:
+          description: |-
+            Optional list of glob patterns for MCP servers to exclude. Servers matching any
+            pattern will be excluded even if they match an includedServers pattern. Exclusions
+            take precedence over inclusions. Only applies to sources with assetType "mcp_servers".
+
+            Pattern Syntax:
+            - Only the `*` wildcard is supported (matches zero or more characters)
+            - Patterns are case-insensitive
+            - Patterns match the entire server name (anchored at start and end)
+            - Wildcards can appear anywhere in the pattern
+
+            Examples:
+            - `*-deprecated` - excludes all servers ending with "-deprecated"
+            - `*-experimental` - excludes experimental servers
+            - `*-alpha` - excludes alpha servers
+
+            Constraints:
+            - Patterns cannot be empty or whitespace-only
+            - A pattern cannot appear in both includedServers and excludedServers
+          type: array
+          items:
+            type: string
         assetType:
           $ref: "#/components/schemas/CatalogAssetType"
           description: |-

@@ -767,3 +767,312 @@ namedQueries:
 	require.Error(t, err, "invalid named query operator should be rejected")
 	assert.Contains(t, err.Error(), "INVALID_OP")
 }
+
+func TestMCPLoaderFilterIncludeExclude(t *testing.T) {
+	_, services, cleanup := setupMCPLoaderTest(t)
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+
+	serversFile := filepath.Join(tmpDir, "servers.yaml")
+	err := os.WriteFile(serversFile, []byte(`mcp_servers:
+  - name: "github-mcp"
+    description: "GitHub MCP server"
+  - name: "slack-mcp"
+    description: "Slack MCP server"
+  - name: "jira-mcp"
+    description: "Jira MCP server"
+  - name: "github-deprecated"
+    description: "Deprecated GitHub server"
+  - name: "random-server"
+    description: "Random unrelated server"
+`), 0644)
+	require.NoError(t, err)
+
+	sourcesFile := filepath.Join(tmpDir, "sources.yaml")
+	err = os.WriteFile(sourcesFile, []byte(`mcp_catalogs:
+  - name: "Filtered MCP Catalog"
+    id: filtered_mcp_catalog
+    type: yaml
+    enabled: true
+    includedServers:
+      - "github-*"
+      - "slack-*"
+    excludedServers:
+      - "*-deprecated"
+    properties:
+      yamlCatalogPath: `+serversFile+`
+`), 0644)
+	require.NoError(t, err)
+
+	baseLoader := basecatalog.NewBaseLoader([]string{sourcesFile})
+	loader := NewMCPLoaderWithState(services, baseLoader)
+	ctx := context.Background()
+
+	err = loader.ParseAllConfigs()
+	require.NoError(t, err)
+
+	baseLoader.SetLeader(true)
+
+	leaderDone := make(chan error, 1)
+	go func() {
+		leaderDone <- loader.PerformLeaderOperations(ctx, mapset.NewSet[string]())
+	}()
+
+	select {
+	case err := <-leaderDone:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for leader operations")
+	}
+
+	baseLoader.WaitForInflightWrites(5 * time.Second)
+
+	// github-mcp should be loaded (matches github-*)
+	_, err = services.MCPServerRepository.GetByNameAndVersion("github-mcp", "")
+	assert.NoError(t, err, "github-mcp should be loaded")
+
+	// slack-mcp should be loaded (matches slack-*)
+	_, err = services.MCPServerRepository.GetByNameAndVersion("slack-mcp", "")
+	assert.NoError(t, err, "slack-mcp should be loaded")
+
+	// github-deprecated should NOT be loaded (excluded by *-deprecated)
+	_, err = services.MCPServerRepository.GetByNameAndVersion("github-deprecated", "")
+	assert.Error(t, err, "github-deprecated should be filtered out by exclusion")
+
+	// jira-mcp should NOT be loaded (not in inclusion list)
+	_, err = services.MCPServerRepository.GetByNameAndVersion("jira-mcp", "")
+	assert.Error(t, err, "jira-mcp should be filtered out by inclusion")
+
+	// random-server should NOT be loaded (not in inclusion list)
+	_, err = services.MCPServerRepository.GetByNameAndVersion("random-server", "")
+	assert.Error(t, err, "random-server should be filtered out by inclusion")
+}
+
+func TestMCPLoaderFilterOnlyExclusions(t *testing.T) {
+	_, services, cleanup := setupMCPLoaderTest(t)
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+
+	serversFile := filepath.Join(tmpDir, "servers.yaml")
+	err := os.WriteFile(serversFile, []byte(`mcp_servers:
+  - name: "github-mcp"
+    description: "GitHub MCP server"
+  - name: "slack-mcp"
+    description: "Slack MCP server"
+  - name: "experimental-server"
+    description: "Experimental server"
+  - name: "alpha-tool"
+    description: "Alpha tool"
+`), 0644)
+	require.NoError(t, err)
+
+	sourcesFile := filepath.Join(tmpDir, "sources.yaml")
+	err = os.WriteFile(sourcesFile, []byte(`mcp_catalogs:
+  - name: "Exclusion-Only Catalog"
+    id: exclusion_only_catalog
+    type: yaml
+    enabled: true
+    excludedServers:
+      - "experimental-*"
+      - "alpha-*"
+    properties:
+      yamlCatalogPath: `+serversFile+`
+`), 0644)
+	require.NoError(t, err)
+
+	baseLoader := basecatalog.NewBaseLoader([]string{sourcesFile})
+	loader := NewMCPLoaderWithState(services, baseLoader)
+	ctx := context.Background()
+
+	err = loader.ParseAllConfigs()
+	require.NoError(t, err)
+
+	baseLoader.SetLeader(true)
+
+	leaderDone := make(chan error, 1)
+	go func() {
+		leaderDone <- loader.PerformLeaderOperations(ctx, mapset.NewSet[string]())
+	}()
+
+	select {
+	case err := <-leaderDone:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for leader operations")
+	}
+
+	baseLoader.WaitForInflightWrites(5 * time.Second)
+
+	// github-mcp and slack-mcp should be loaded
+	_, err = services.MCPServerRepository.GetByNameAndVersion("github-mcp", "")
+	assert.NoError(t, err, "github-mcp should be loaded")
+
+	_, err = services.MCPServerRepository.GetByNameAndVersion("slack-mcp", "")
+	assert.NoError(t, err, "slack-mcp should be loaded")
+
+	// experimental-server and alpha-tool should be excluded
+	_, err = services.MCPServerRepository.GetByNameAndVersion("experimental-server", "")
+	assert.Error(t, err, "experimental-server should be filtered out")
+
+	_, err = services.MCPServerRepository.GetByNameAndVersion("alpha-tool", "")
+	assert.Error(t, err, "alpha-tool should be filtered out")
+}
+
+func TestMCPLoaderNoFilterAllowsAll(t *testing.T) {
+	_, services, cleanup := setupMCPLoaderTest(t)
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+
+	serversFile := filepath.Join(tmpDir, "servers.yaml")
+	err := os.WriteFile(serversFile, []byte(`mcp_servers:
+  - name: "server-a"
+    description: "Server A"
+  - name: "server-b"
+    description: "Server B"
+`), 0644)
+	require.NoError(t, err)
+
+	sourcesFile := filepath.Join(tmpDir, "sources.yaml")
+	err = os.WriteFile(sourcesFile, []byte(`mcp_catalogs:
+  - name: "No Filter Catalog"
+    id: no_filter_catalog
+    type: yaml
+    enabled: true
+    properties:
+      yamlCatalogPath: `+serversFile+`
+`), 0644)
+	require.NoError(t, err)
+
+	baseLoader := basecatalog.NewBaseLoader([]string{sourcesFile})
+	loader := NewMCPLoaderWithState(services, baseLoader)
+	ctx := context.Background()
+
+	err = loader.ParseAllConfigs()
+	require.NoError(t, err)
+
+	baseLoader.SetLeader(true)
+
+	leaderDone := make(chan error, 1)
+	go func() {
+		leaderDone <- loader.PerformLeaderOperations(ctx, mapset.NewSet[string]())
+	}()
+
+	select {
+	case err := <-leaderDone:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for leader operations")
+	}
+
+	baseLoader.WaitForInflightWrites(5 * time.Second)
+
+	// Both servers should be loaded (no filters)
+	_, err = services.MCPServerRepository.GetByNameAndVersion("server-a", "")
+	assert.NoError(t, err, "server-a should be loaded")
+
+	_, err = services.MCPServerRepository.GetByNameAndVersion("server-b", "")
+	assert.NoError(t, err, "server-b should be loaded")
+}
+
+func TestMCPLoaderMultipleSourcesDifferentFilters(t *testing.T) {
+	_, services, cleanup := setupMCPLoaderTest(t)
+	defer cleanup()
+
+	tmpDir := t.TempDir()
+
+	// Source 1: servers with github prefix
+	serversFile1 := filepath.Join(tmpDir, "servers1.yaml")
+	err := os.WriteFile(serversFile1, []byte(`mcp_servers:
+  - name: "github-mcp"
+    description: "GitHub MCP server"
+  - name: "github-actions"
+    description: "GitHub Actions"
+  - name: "gitlab-mcp"
+    description: "GitLab MCP server"
+`), 0644)
+	require.NoError(t, err)
+
+	// Source 2: servers with slack prefix
+	serversFile2 := filepath.Join(tmpDir, "servers2.yaml")
+	err = os.WriteFile(serversFile2, []byte(`mcp_servers:
+  - name: "slack-mcp"
+    description: "Slack MCP server"
+  - name: "slack-beta"
+    description: "Slack beta server"
+  - name: "discord-mcp"
+    description: "Discord MCP server"
+`), 0644)
+	require.NoError(t, err)
+
+	sourcesFile := filepath.Join(tmpDir, "sources.yaml")
+	err = os.WriteFile(sourcesFile, []byte(`mcp_catalogs:
+  - name: "GitHub Source"
+    id: github_source
+    type: yaml
+    enabled: true
+    includedServers:
+      - "github-*"
+    properties:
+      yamlCatalogPath: `+serversFile1+`
+  - name: "Slack Source"
+    id: slack_source
+    type: yaml
+    enabled: true
+    includedServers:
+      - "slack-*"
+    excludedServers:
+      - "*-beta"
+    properties:
+      yamlCatalogPath: `+serversFile2+`
+`), 0644)
+	require.NoError(t, err)
+
+	baseLoader := basecatalog.NewBaseLoader([]string{sourcesFile})
+	loader := NewMCPLoaderWithState(services, baseLoader)
+	ctx := context.Background()
+
+	err = loader.ParseAllConfigs()
+	require.NoError(t, err)
+
+	baseLoader.SetLeader(true)
+
+	leaderDone := make(chan error, 1)
+	go func() {
+		leaderDone <- loader.PerformLeaderOperations(ctx, mapset.NewSet[string]())
+	}()
+
+	select {
+	case err := <-leaderDone:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for leader operations")
+	}
+
+	baseLoader.WaitForInflightWrites(5 * time.Second)
+
+	// Source 1: github-* included
+	_, err = services.MCPServerRepository.GetByNameAndVersion("github-mcp", "")
+	assert.NoError(t, err, "github-mcp should be loaded")
+
+	_, err = services.MCPServerRepository.GetByNameAndVersion("github-actions", "")
+	assert.NoError(t, err, "github-actions should be loaded")
+
+	// Source 1: gitlab-mcp not matching github-* inclusion
+	_, err = services.MCPServerRepository.GetByNameAndVersion("gitlab-mcp", "")
+	assert.Error(t, err, "gitlab-mcp should be filtered out")
+
+	// Source 2: slack-mcp included
+	_, err = services.MCPServerRepository.GetByNameAndVersion("slack-mcp", "")
+	assert.NoError(t, err, "slack-mcp should be loaded")
+
+	// Source 2: slack-beta excluded by *-beta
+	_, err = services.MCPServerRepository.GetByNameAndVersion("slack-beta", "")
+	assert.Error(t, err, "slack-beta should be filtered out")
+
+	// Source 2: discord-mcp not matching slack-* inclusion
+	_, err = services.MCPServerRepository.GetByNameAndVersion("discord-mcp", "")
+	assert.Error(t, err, "discord-mcp should be filtered out")
+}

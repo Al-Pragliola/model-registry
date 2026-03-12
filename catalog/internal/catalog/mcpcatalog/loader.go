@@ -200,8 +200,16 @@ func (ml *MCPLoader) loadAllServers(ctx context.Context, sources map[string]base
 			continue
 		}
 
+		// Build the server filter for this source
+		filter, filterErr := NewMCPServerFilterFromSource(&source)
+		if filterErr != nil {
+			glog.Errorf("Error building MCP server filter for source %s: %v", source.Name, filterErr)
+			basecatalog.SaveSourceStatus(ml.services.CatalogSourceRepository, source.ID, basecatalog.SourceStatusError, filterErr.Error())
+			continue
+		}
+
 		// Load servers from this provider
-		err = ml.loadServersFromProvider(ctx, source.ID, provider)
+		err = ml.loadServersFromProvider(ctx, source.ID, provider, filter)
 		if err != nil {
 			if errors.Is(err, ErrMCPPartiallyAvailable) {
 				glog.Warningf("Partial error loading servers from source %s: %v", source.Name, err)
@@ -235,9 +243,11 @@ func (ml *MCPLoader) loadAllServers(ctx context.Context, sources map[string]base
 }
 
 // loadServersFromProvider loads all servers from a single provider.
+// The filter parameter controls which servers are accepted based on name patterns;
+// a nil filter allows all servers.
 // Returns MCPPartiallyAvailableError if some servers loaded successfully but others failed.
 // Returns a regular error if all servers failed to load.
-func (ml *MCPLoader) loadServersFromProvider(ctx context.Context, sourceID string, provider MCPProvider) error {
+func (ml *MCPLoader) loadServersFromProvider(ctx context.Context, sourceID string, provider MCPProvider, filter *MCPServerFilter) error {
 	recordChan := provider.Servers(ctx)
 
 	validServerNames := mapset.NewSet[string]()
@@ -271,6 +281,15 @@ func (ml *MCPLoader) loadServersFromProvider(ctx context.Context, sourceID strin
 
 		if record.Server == nil {
 			continue
+		}
+
+		// Apply server name filter before any database operations
+		if record.Server.GetAttributes() != nil && record.Server.GetAttributes().Name != nil {
+			serverName := *record.Server.GetAttributes().Name
+			if !filter.Allows(serverName) {
+				glog.V(2).Infof("Skipping MCP server %q (filtered out by source %s)", serverName, sourceID)
+				continue
+			}
 		}
 
 		// Set the source_id property
