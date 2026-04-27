@@ -9,12 +9,19 @@ import { CategoryName } from '~/app/modelCatalogTypes';
 import { useHasVisibleFiltersApplied } from '~/app/hooks/modelCatalog/useHasVisibleFiltersApplied';
 import { getActiveSourceLabels } from '~/app/pages/modelCatalog/utils/modelCatalogUtils';
 import EmptyModelCatalogState from '~/app/pages/modelCatalog/EmptyModelCatalogState';
+import { useModelCatalogSelection } from '~/app/hooks/modelCatalog/useModelCatalogSelection';
 import ModelCatalogSourceLabelSelectorNavigator from './ModelCatalogSourceLabelSelectorNavigator';
 import ModelCatalogAllModelsView from './ModelCatalogAllModelsView';
 import ModelCatalogGalleryView from './ModelCatalogGalleryView';
 
 const ModelCatalog: React.FC = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const {
+    selectedModels,
+    isModelSelected,
+    toggleModelSelection,
+    clearSelection,
+  } = useModelCatalogSelection();
   const {
     selectedSourceLabel,
     updateSelectedSourceLabel,
@@ -90,16 +97,24 @@ const ModelCatalog: React.FC = () => {
                 onSearch={handleSearch}
                 onClearSearch={handleClearSearch}
                 onResetAllFilters={handleFilterReset}
+                selectedModels={selectedModels}
+                clearSelection={clearSelection}
               />
               <PageSection isFilled padding={{ default: 'noPadding' }}>
                 {isAllModelsView && !isSingleCategory ? (
-                  <ModelCatalogAllModelsView searchTerm={searchTerm} />
+                  <ModelCatalogAllModelsView
+                    searchTerm={searchTerm}
+                    isModelSelected={isModelSelected}
+                    onToggleModelSelection={toggleModelSelection}
+                  />
                 ) : (
                   <ModelCatalogGalleryView
                     searchTerm={searchTerm}
                     handleFilterReset={handleFilterReset}
                     isSingleCategory={isSingleCategory}
                     singleCategoryLabel={isSingleCategory ? activeCategories[0] : undefined}
+                    isModelSelected={isModelSelected}
+                    onToggleModelSelection={toggleModelSelection}
                   />
                 )}
               </PageSection>

@@ -12,7 +12,7 @@ import {
 } from '@patternfly/react-core';
 import React from 'react';
 import { ArrowRightIcon, SearchIcon } from '@patternfly/react-icons';
-import { CatalogSourceList } from '~/app/modelCatalogTypes';
+import { CatalogModel, CatalogSourceList } from '~/app/modelCatalogTypes';
 import { useCatalogModelsBySources } from '~/app/hooks/modelCatalog/useCatalogModelsBySource';
 import EmptyModelCatalogState from '~/app/pages/modelCatalog/EmptyModelCatalogState';
 import {
@@ -29,6 +29,8 @@ type CategorySectionProps = {
   pageSize: number;
   catalogSources: CatalogSourceList | null;
   onShowMore: (label: string) => void;
+  isModelSelected?: (model: CatalogModel) => boolean;
+  onToggleModelSelection?: (model: CatalogModel) => void;
 };
 
 const CatalogCategorySection: React.FC<CategorySectionProps> = ({
@@ -37,6 +39,8 @@ const CatalogCategorySection: React.FC<CategorySectionProps> = ({
   pageSize,
   catalogSources,
   onShowMore,
+  isModelSelected,
+  onToggleModelSelection,
 }) => {
   const { catalogLabels } = React.useContext(ModelCatalogContext);
   const { catalogModels, catalogModelsLoaded, catalogModelsLoadError } = useCatalogModelsBySources(
@@ -130,6 +134,9 @@ const CatalogCategorySection: React.FC<CategorySectionProps> = ({
                 <ModelCatalogCard
                   model={model}
                   source={getSourceFromSourceId(model.source_id || '', catalogSources)}
+                  isSelectable={!!onToggleModelSelection}
+                  isSelected={isModelSelected?.(model)}
+                  onToggleSelect={onToggleModelSelection}
                 />
               </GridItem>
             ))}

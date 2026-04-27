@@ -158,6 +158,23 @@ func (m *ModelCatalogClientMock) GetAllCatalogModelsAcrossSources(client httpcli
 
 }
 
+func (m *ModelCatalogClientMock) GetAllCatalogModelsForExport(client httpclient.HTTPClientInterface, pageValues url.Values) ([]models.CatalogModel, error) {
+	allModels := GetCatalogModelMocks()
+	sourceId := pageValues.Get("source")
+
+	if sourceId != "" {
+		var filtered []models.CatalogModel
+		for _, model := range allModels {
+			if model.SourceId != nil && *model.SourceId == sourceId {
+				filtered = append(filtered, model)
+			}
+		}
+		return filtered, nil
+	}
+
+	return allModels, nil
+}
+
 func (m *ModelCatalogClientMock) GetCatalogSourceModel(client httpclient.HTTPClientInterface, sourceId string, modelName string) (*models.CatalogModel, error) {
 	allModels := GetCatalogModelMocks()
 

@@ -43,6 +43,8 @@ type ModelCatalogPageProps = {
   handleFilterReset: () => void;
   isSingleCategory?: boolean;
   singleCategoryLabel?: string;
+  isModelSelected?: (model: CatalogModel) => boolean;
+  onToggleModelSelection?: (model: CatalogModel) => void;
 };
 
 const ModelCatalogGalleryView: React.FC<ModelCatalogPageProps> = ({
@@ -50,6 +52,8 @@ const ModelCatalogGalleryView: React.FC<ModelCatalogPageProps> = ({
   handleFilterReset,
   isSingleCategory = false,
   singleCategoryLabel,
+  isModelSelected,
+  onToggleModelSelection,
 }) => {
   const {
     selectedSourceLabel,
@@ -307,6 +311,9 @@ const ModelCatalogGalleryView: React.FC<ModelCatalogPageProps> = ({
             <ModelCatalogCard
               model={model}
               source={getSourceFromSourceId(model.source_id || '', catalogSources)}
+              isSelectable={!!onToggleModelSelection}
+              isSelected={isModelSelected?.(model)}
+              onToggleSelect={onToggleModelSelection}
             />
           </GridItem>
         ))}

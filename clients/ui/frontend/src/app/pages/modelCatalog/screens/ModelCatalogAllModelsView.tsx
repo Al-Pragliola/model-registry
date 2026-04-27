@@ -7,14 +7,20 @@ import {
   hasSourcesWithoutLabels,
   orderLabelsByPriority,
 } from '~/app/pages/modelCatalog/utils/modelCatalogUtils';
-import { CategoryName, SourceLabel } from '~/app/modelCatalogTypes';
+import { CatalogModel, CategoryName, SourceLabel } from '~/app/modelCatalogTypes';
 import CatalogCategorySection from './CatalogCategorySection';
 
 type ModelCatalogAllModelsViewProps = {
   searchTerm: string;
+  isModelSelected?: (model: CatalogModel) => boolean;
+  onToggleModelSelection?: (model: CatalogModel) => void;
 };
 
-const ModelCatalogAllModelsView: React.FC<ModelCatalogAllModelsViewProps> = ({ searchTerm }) => {
+const ModelCatalogAllModelsView: React.FC<ModelCatalogAllModelsViewProps> = ({
+  searchTerm,
+  isModelSelected,
+  onToggleModelSelection,
+}) => {
   const { catalogSources, catalogLabels, updateSelectedSourceLabel } =
     React.useContext(ModelCatalogContext);
 
@@ -47,6 +53,8 @@ const ModelCatalogAllModelsView: React.FC<ModelCatalogAllModelsViewProps> = ({ s
           pageSize={4}
           catalogSources={catalogSources}
           onShowMore={handleShowMoreCategory}
+          isModelSelected={isModelSelected}
+          onToggleModelSelection={onToggleModelSelection}
         />
       ))}
       {hasSourcesWithoutLabelsValue && (
@@ -57,6 +65,8 @@ const ModelCatalogAllModelsView: React.FC<ModelCatalogAllModelsViewProps> = ({ s
           pageSize={4}
           catalogSources={catalogSources}
           onShowMore={handleShowMoreCategory}
+          isModelSelected={isModelSelected}
+          onToggleModelSelection={onToggleModelSelection}
         />
       )}
     </Stack>

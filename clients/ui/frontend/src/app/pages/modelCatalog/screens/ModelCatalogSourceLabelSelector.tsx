@@ -22,6 +22,8 @@ import ThemeAwareSearchInput from '~/app/pages/modelRegistry/screens/components/
 import { ModelCatalogContext } from '~/app/context/modelCatalog/ModelCatalogContext';
 import { hasFiltersApplied } from '~/app/pages/modelCatalog/utils/modelCatalogUtils';
 import ModelCatalogSortDropdown from '~/app/pages/modelCatalog/components/ModelCatalogSortDropdown';
+import ModelCatalogExportButton from '~/app/pages/modelCatalog/components/ModelCatalogExportButton';
+import { CatalogModel } from '~/app/modelCatalogTypes';
 import ModelCatalogSourceLabelBlocks from './ModelCatalogSourceLabelBlocks';
 
 type ModelCatalogSourceLabelSelectorProps = {
@@ -29,6 +31,8 @@ type ModelCatalogSourceLabelSelectorProps = {
   onSearch?: (term: string) => void;
   onClearSearch?: () => void;
   onResetAllFilters?: () => void;
+  selectedModels?: Map<string, CatalogModel>;
+  clearSelection?: () => void;
 };
 
 const ModelCatalogSourceLabelSelector: React.FC<ModelCatalogSourceLabelSelectorProps> = ({
@@ -36,11 +40,15 @@ const ModelCatalogSourceLabelSelector: React.FC<ModelCatalogSourceLabelSelectorP
   onSearch,
   onClearSearch,
   onResetAllFilters,
+  selectedModels,
+  clearSelection,
 }) => {
   const [inputValue, setInputValue] = React.useState(searchTerm || '');
   const { isMUITheme } = useThemeContext();
   const {
     filterData,
+    filterOptions,
+    selectedSourceLabel,
     performanceViewEnabled,
     performanceFiltersChangedOnDetailsPage,
     setPerformanceFiltersChangedOnDetailsPage,
@@ -198,7 +206,19 @@ const ModelCatalogSourceLabelSelector: React.FC<ModelCatalogSourceLabelSelectorP
           alignItems={{ default: 'alignItemsCenter' }}
         >
           <ModelCatalogSourceLabelBlocks />
-          <ModelCatalogSortDropdown performanceViewEnabled={performanceViewEnabled} />
+          <Flex gap={{ default: 'gapMd' }} alignItems={{ default: 'alignItemsCenter' }}>
+            <ModelCatalogSortDropdown performanceViewEnabled={performanceViewEnabled} />
+            {selectedModels && clearSelection && (
+              <ModelCatalogExportButton
+                selectedModels={selectedModels}
+                clearSelection={clearSelection}
+                selectedSourceLabel={selectedSourceLabel}
+                searchTerm={searchTerm}
+                filterData={filterData}
+                filterOptions={filterOptions}
+              />
+            )}
+          </Flex>
         </Flex>
       </StackItem>
       {shouldShowAlert && (

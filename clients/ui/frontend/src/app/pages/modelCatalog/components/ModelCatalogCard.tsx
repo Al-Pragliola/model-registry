@@ -6,6 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  Checkbox,
   Flex,
   FlexItem,
   Label,
@@ -25,9 +26,18 @@ import ModelCatalogCardBody from './ModelCatalogCardBody';
 type ModelCatalogCardProps = {
   model: CatalogModel;
   source: CatalogSource | undefined;
+  isSelectable?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (model: CatalogModel) => void;
 };
 
-const ModelCatalogCard: React.FC<ModelCatalogCardProps> = ({ model, source }) => {
+const ModelCatalogCard: React.FC<ModelCatalogCardProps> = ({
+  model,
+  source,
+  isSelectable,
+  isSelected,
+  onToggleSelect,
+}) => {
   // Extract labels from customProperties and check for validated label
   const allLabels = model.customProperties ? getLabels(model.customProperties) : [];
   const isValidated = isModelValidated(model);
@@ -37,6 +47,18 @@ const ModelCatalogCard: React.FC<ModelCatalogCardProps> = ({ model, source }) =>
       <CardHeader>
         <CardTitle>
           <Flex alignItems={{ default: 'alignItemsFlexStart' }} className="pf-v6-u-mb-md">
+            {isSelectable && (
+              <FlexItem>
+                <Checkbox
+                  id={`select-${model.source_id}-${model.name}`}
+                  isChecked={isSelected}
+                  onChange={() => onToggleSelect?.(model)}
+                  aria-label={`Select ${model.name}`}
+                  data-testid="model-catalog-card-checkbox"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </FlexItem>
+            )}
             {model.logo ? (
               <img src={model.logo} alt="model logo" style={{ height: '56px', width: '56px' }} />
             ) : (

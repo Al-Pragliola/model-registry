@@ -104,6 +104,63 @@ func setupApiTest[T any](method string, url string, body interface{}, k8Factory 
 	return entity, rs, nil
 }
 
+func setupRawApiTest(method string, url string, k8Factory kubernetes.KubernetesClientFactory, requestIdentity kubernetes.RequestIdentity, namespace string) (string, *http.Response, error) {
+	mockMRClient, err := mocks.NewModelRegistryClient(nil)
+	if err != nil {
+		return "", nil, err
+	}
+	mockModelCatalogClient, err := mocks.NewModelCatalogClientMock(nil)
+	if err != nil {
+		return "", nil, err
+	}
+
+	mockClient := new(mocks.MockHTTPClient)
+
+	cfg := config.EnvConfig{
+		AuthMethod: config.AuthMethodInternal,
+	}
+	if requestIdentity.Token != "" {
+		cfg.AuthMethod = config.AuthMethodUser
+	}
+	testApp := App{
+		repositories:            repositories.NewRepositories(mockMRClient, mockModelCatalogClient),
+		kubernetesClientFactory: k8Factory,
+		logger:                  slog.Default(),
+		config:                  cfg,
+	}
+
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if requestIdentity.UserID != "" {
+		req.Header.Set(constants.KubeflowUserIDHeader, requestIdentity.UserID)
+	}
+
+	ctx := mocks.NewMockSessionContext(req.Context())
+	ctx = context.WithValue(ctx, constants.ModelRegistryHttpClientKey, mockClient)
+	ctx = context.WithValue(ctx, constants.RequestIdentityKey, requestIdentity)
+	ctx = context.WithValue(ctx, constants.NamespaceHeaderParameterKey, namespace)
+	mrHttpClient := k8s.HTTPClient{}
+	modelCatalogHttpClient := k8s.HTTPClient{}
+	ctx = context.WithValue(ctx, constants.ModelRegistryHttpClientKey, mrHttpClient)
+	ctx = context.WithValue(ctx, constants.ModelCatalogHttpClientKey, modelCatalogHttpClient)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	testApp.Routes().ServeHTTP(rr, req)
+
+	rs := rr.Result()
+	defer rs.Body.Close()
+	respBody, err := io.ReadAll(rs.Body)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return string(respBody), rs, nil
+}
+
 func resolveStaticAssetsDirOnTests() string {
 	// Fall back to finding project root for testing
 	projectRoot, err := findProjectRootOnTests()
