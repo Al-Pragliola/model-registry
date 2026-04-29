@@ -7,6 +7,7 @@ import (
 type ModelCatalogClientInterface interface {
 	CatalogSourcesInterface
 	CatalogModelsInterface
+	CatalogExportInterface
 	CatalogSourcePreviewInterface
 	McpServerCatalogInterface
 }
@@ -15,6 +16,7 @@ type ModelCatalogClient struct {
 	logger *slog.Logger
 	CatalogSources
 	CatalogModels
+	CatalogExport
 	CatalogSourcePreview
 	McpServerCatalog
 }

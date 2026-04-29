@@ -65,6 +65,12 @@ func (c *ModelCatalogServiceAPIController) Routes() Routes {
 			"/api/model_catalog/v1alpha1/models",
 			c.FindModels,
 		},
+		"ExportModels": Route{
+			"ExportModels",
+			strings.ToUpper("Get"),
+			"/api/model_catalog/v1alpha1/models/export",
+			c.ExportModels,
+		},
 		"FindModelsFilterOptions": Route{
 			"FindModelsFilterOptions",
 			strings.ToUpper("Get"),
@@ -118,6 +124,12 @@ func (c *ModelCatalogServiceAPIController) OrderedRoutes() []Route {
 			strings.ToUpper("Get"),
 			"/api/model_catalog/v1alpha1/models",
 			c.FindModels,
+		},
+		Route{
+			"ExportModels",
+			strings.ToUpper("Get"),
+			"/api/model_catalog/v1alpha1/models/export",
+			c.ExportModels,
 		},
 		Route{
 			"FindModelsFilterOptions",
@@ -334,6 +346,97 @@ func (c *ModelCatalogServiceAPIController) FindModels(w http.ResponseWriter, r *
 	} else {
 	}
 	result, err := c.service.FindModels(r.Context(), recommendationsParam, targetRPSParam, latencyPropertyParam, rpsPropertyParam, hardwareCountPropertyParam, hardwareTypePropertyParam, sourceParam, qParam, sourceLabelParam, filterQueryParam, pageSizeParam, orderByParam, sortOrderParam, nextPageTokenParam)
+	// If an error occurred, encode the error with the status code
+	if err != nil {
+		c.errorHandler(w, r, err, &result)
+		return
+	}
+	// If no error, encode the body and the result code
+	_ = EncodeJSONResponse(result.Body, &result.Code, w)
+}
+
+// ExportModels - Export catalog models as CSV or preview export.
+func (c *ModelCatalogServiceAPIController) ExportModels(w http.ResponseWriter, r *http.Request) {
+	query, err := parseQuery(r.URL.RawQuery)
+	if err != nil {
+		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
+		return
+	}
+	var dryRunParam bool
+	if query.Has("dryRun") {
+		param, err := parseBoolParameter(
+			query.Get("dryRun"),
+			WithParse[bool](parseBool),
+		)
+		if err != nil {
+			c.errorHandler(w, r, &ParsingError{Param: "dryRun", Err: err}, nil)
+			return
+		}
+
+		dryRunParam = param
+	} else {
+		var param bool = false
+		dryRunParam = param
+	}
+	var idParam []string
+	if query.Has("id") {
+		idParam = strings.Split(query.Get("id"), ",")
+	}
+	var excludeIdParam []string
+	if query.Has("excludeId") {
+		excludeIdParam = strings.Split(query.Get("excludeId"), ",")
+	}
+	var sourceParam []string
+	if query.Has("source") {
+		sourceParam = strings.Split(query.Get("source"), ",")
+	}
+	var qParam string
+	if query.Has("q") {
+		param := query.Get("q")
+
+		qParam = param
+	} else {
+	}
+	var sourceLabelParam []string
+	if query.Has("sourceLabel") {
+		sourceLabelParam = strings.Split(query.Get("sourceLabel"), ",")
+	}
+	var filterQueryParam string
+	if query.Has("filterQuery") {
+		param := query.Get("filterQuery")
+
+		filterQueryParam = param
+	} else {
+	}
+	var pageSizeParam string
+	if query.Has("pageSize") {
+		param := query.Get("pageSize")
+
+		pageSizeParam = param
+	} else {
+	}
+	var orderByParam model.OrderByField
+	if query.Has("orderBy") {
+		param := model.OrderByField(query.Get("orderBy"))
+
+		orderByParam = param
+	} else {
+	}
+	var sortOrderParam model.SortOrder
+	if query.Has("sortOrder") {
+		param := model.SortOrder(query.Get("sortOrder"))
+
+		sortOrderParam = param
+	} else {
+	}
+	var nextPageTokenParam string
+	if query.Has("nextPageToken") {
+		param := query.Get("nextPageToken")
+
+		nextPageTokenParam = param
+	} else {
+	}
+	result, err := c.service.ExportModels(r.Context(), dryRunParam, idParam, excludeIdParam, sourceParam, qParam, sourceLabelParam, filterQueryParam, pageSizeParam, orderByParam, sortOrderParam, nextPageTokenParam)
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)

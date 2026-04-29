@@ -151,6 +151,120 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
       operationId: findModelsFilterOptions
+  /api/model_catalog/v1alpha1/models/export:
+    description: >-
+      Export catalog models as a CSV file or preview the export as JSON.
+    get:
+      summary: Export catalog models as CSV or preview export.
+      tags:
+        - ModelCatalogService
+      parameters:
+        - name: dryRun
+          in: query
+          description: |-
+            When true, returns a JSON preview containing the total count, column
+            headers, and a paginated list of models that would be exported.
+            When false or omitted, returns a CSV file download.
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: id
+          in: query
+          description: |-
+            Export only models with these IDs. Repeatable for multiple IDs.
+            Mutually exclusive with `excludeId` and filter parameters
+            (`source`, `q`, `sourceLabel`, `filterQuery`).
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: excludeId
+          in: query
+          description: |-
+            Exclude models with these IDs from the export. Repeatable for
+            multiple IDs. Mutually exclusive with `id`.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: source
+          description: |-
+            Filter models by source. Multiple values can be separated by commas
+            to filter by multiple sources (OR logic).
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          in: query
+          required: false
+        - name: q
+          description: Free-form keyword search used to filter the response.
+          schema:
+            type: string
+          in: query
+          required: false
+        - name: sourceLabel
+          description: |-
+            Filter models by the label associated with the source. Multiple
+            values can be separated by commas. If one of the values is the
+            string `null`, then models from every source without a label will
+            be returned.
+          schema:
+            type: array
+            items:
+              type: string
+          in: query
+          required: false
+        - $ref: "#/components/parameters/filterQuery"
+        - $ref: "#/components/parameters/pageSize"
+        - name: orderBy
+          style: form
+          explode: true
+          description: |-
+            Specifies the order by criteria for listing entities.
+
+            Supported values are:
+            - CREATE_TIME
+            - LAST_UPDATE_TIME
+            - ID
+            - NAME
+
+            Defaults to `NAME`.
+          schema:
+            $ref: "#/components/schemas/OrderByField"
+          in: query
+          required: false
+        - $ref: "#/components/parameters/sortOrder"
+        - $ref: "#/components/parameters/nextPageToken"
+      responses:
+        "200":
+          description: |-
+            CSV file download (when dryRun is false or omitted) or JSON
+            preview (when dryRun is true).
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportDryRunResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+      operationId: exportModels
   /api/model_catalog/v1alpha1/labels:
     summary: Path used to get the list of catalog labels.
     description: >-
@@ -1605,6 +1719,45 @@ components:
         - ID
         - NAME
       type: string
+    ExportDryRunResponse:
+      description: |-
+        Preview of a CSV export operation. Contains the total count of models
+        that would be exported, the column headers, and a paginated list of
+        the models.
+      type: object
+      required:
+        - totalCount
+        - columns
+        - items
+        - pageSize
+        - nextPageToken
+        - size
+      properties:
+        totalCount:
+          description: Total number of models that would be exported.
+          type: integer
+          format: int32
+        columns:
+          description: Column headers that will appear in the CSV file.
+          type: array
+          items:
+            type: string
+        items:
+          description: Paginated list of models that would be exported.
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogModel"
+        pageSize:
+          description: Requested page size for the preview list.
+          type: integer
+          format: int32
+        nextPageToken:
+          description: Token to retrieve the next page of the preview list.
+          type: string
+        size:
+          description: Number of items in the current page.
+          type: integer
+          format: int32
 
   responses:
     CatalogArtifactListResponse:

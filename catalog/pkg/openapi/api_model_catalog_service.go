@@ -24,6 +24,282 @@ import (
 // ModelCatalogServiceAPIService ModelCatalogServiceAPI service
 type ModelCatalogServiceAPIService service
 
+type ApiExportModelsRequest struct {
+	ctx           context.Context
+	ApiService    *ModelCatalogServiceAPIService
+	dryRun        *bool
+	id            *[]string
+	excludeId     *[]string
+	source        *[]string
+	q             *string
+	sourceLabel   *[]string
+	filterQuery   *string
+	pageSize      *string
+	orderBy       *OrderByField
+	sortOrder     *SortOrder
+	nextPageToken *string
+}
+
+// When true, returns a JSON preview containing the total count, column headers, and a paginated list of models that would be exported. When false or omitted, returns a CSV file download.
+func (r ApiExportModelsRequest) DryRun(dryRun bool) ApiExportModelsRequest {
+	r.dryRun = &dryRun
+	return r
+}
+
+// Export only models with these IDs. Repeatable for multiple IDs. Mutually exclusive with &#x60;excludeId&#x60; and filter parameters (&#x60;source&#x60;, &#x60;q&#x60;, &#x60;sourceLabel&#x60;, &#x60;filterQuery&#x60;).
+func (r ApiExportModelsRequest) Id(id []string) ApiExportModelsRequest {
+	r.id = &id
+	return r
+}
+
+// Exclude models with these IDs from the export. Repeatable for multiple IDs. Mutually exclusive with &#x60;id&#x60;.
+func (r ApiExportModelsRequest) ExcludeId(excludeId []string) ApiExportModelsRequest {
+	r.excludeId = &excludeId
+	return r
+}
+
+// Filter models by source. Multiple values can be separated by commas to filter by multiple sources (OR logic).
+func (r ApiExportModelsRequest) Source(source []string) ApiExportModelsRequest {
+	r.source = &source
+	return r
+}
+
+// Free-form keyword search used to filter the response.
+func (r ApiExportModelsRequest) Q(q string) ApiExportModelsRequest {
+	r.q = &q
+	return r
+}
+
+// Filter models by the label associated with the source. Multiple values can be separated by commas. If one of the values is the string &#x60;null&#x60;, then models from every source without a label will be returned.
+func (r ApiExportModelsRequest) SourceLabel(sourceLabel []string) ApiExportModelsRequest {
+	r.sourceLabel = &sourceLabel
+	return r
+}
+
+// A SQL-like query string to filter the list of entities. The query supports rich filtering capabilities with automatic type inference.  **Supported Operators:** - Comparison: &#x60;&#x3D;&#x60;, &#x60;!&#x3D;&#x60;, &#x60;&lt;&gt;&#x60;, &#x60;&gt;&#x60;, &#x60;&lt;&#x60;, &#x60;&gt;&#x3D;&#x60;, &#x60;&lt;&#x3D;&#x60; - Pattern matching: &#x60;LIKE&#x60;, &#x60;ILIKE&#x60; (case-insensitive) - Set membership: &#x60;IN&#x60; - Logical: &#x60;AND&#x60;, &#x60;OR&#x60; - Grouping: &#x60;()&#x60; for complex expressions  **Data Types:** - Strings: &#x60;\&quot;value\&quot;&#x60; or &#x60;&#39;value&#39;&#x60; - Numbers: &#x60;42&#x60;, &#x60;3.14&#x60;, &#x60;1e-5&#x60; - Booleans: &#x60;true&#x60;, &#x60;false&#x60; (case-insensitive)  **Property Access:** - Standard properties: &#x60;name&#x60;, &#x60;id&#x60;, &#x60;state&#x60;, &#x60;createTimeSinceEpoch&#x60; - Custom properties: Any user-defined property name - Escaped properties: Use backticks for special characters: &#x60;&#x60; &#x60;custom-property&#x60; &#x60;&#x60; - Type-specific access: &#x60;property.string_value&#x60;, &#x60;property.double_value&#x60;, &#x60;property.int_value&#x60;, &#x60;property.bool_value&#x60;  **Examples:** - Basic: &#x60;name &#x3D; \&quot;my-model\&quot;&#x60; - Comparison: &#x60;accuracy &gt; 0.95&#x60; - Pattern: &#x60;name LIKE \&quot;%tensorflow%\&quot;&#x60; - Complex: &#x60;(name &#x3D; \&quot;model-a\&quot; OR name &#x3D; \&quot;model-b\&quot;) AND state &#x3D; \&quot;LIVE\&quot;&#x60; - Custom property: &#x60;framework.string_value &#x3D; \&quot;pytorch\&quot;&#x60; - Escaped property: &#x60;&#x60; &#x60;mlflow.source.type&#x60; &#x3D; \&quot;notebook\&quot; &#x60;&#x60;
+func (r ApiExportModelsRequest) FilterQuery(filterQuery string) ApiExportModelsRequest {
+	r.filterQuery = &filterQuery
+	return r
+}
+
+// Number of entities in each page.
+func (r ApiExportModelsRequest) PageSize(pageSize string) ApiExportModelsRequest {
+	r.pageSize = &pageSize
+	return r
+}
+
+// Specifies the order by criteria for listing entities.  Supported values are: - CREATE_TIME - LAST_UPDATE_TIME - ID - NAME  Defaults to &#x60;NAME&#x60;.
+func (r ApiExportModelsRequest) OrderBy(orderBy OrderByField) ApiExportModelsRequest {
+	r.orderBy = &orderBy
+	return r
+}
+
+// Specifies the sort order for listing entities, defaults to ASC.
+func (r ApiExportModelsRequest) SortOrder(sortOrder SortOrder) ApiExportModelsRequest {
+	r.sortOrder = &sortOrder
+	return r
+}
+
+// Token to use to retrieve next page of results.
+func (r ApiExportModelsRequest) NextPageToken(nextPageToken string) ApiExportModelsRequest {
+	r.nextPageToken = &nextPageToken
+	return r
+}
+
+func (r ApiExportModelsRequest) Execute() (*os.File, *http.Response, error) {
+	return r.ApiService.ExportModelsExecute(r)
+}
+
+/*
+ExportModels Export catalog models as CSV or preview export.
+
+	@param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return ApiExportModelsRequest
+*/
+func (a *ModelCatalogServiceAPIService) ExportModels(ctx context.Context) ApiExportModelsRequest {
+	return ApiExportModelsRequest{
+		ApiService: a,
+		ctx:        ctx,
+	}
+}
+
+// Execute executes the request
+//
+//	@return *os.File
+func (a *ModelCatalogServiceAPIService) ExportModelsExecute(r ApiExportModelsRequest) (*os.File, *http.Response, error) {
+	var (
+		localVarHTTPMethod  = http.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue *os.File
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "ModelCatalogServiceAPIService.ExportModels")
+	if err != nil {
+		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/api/model_catalog/v1alpha1/models/export"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := url.Values{}
+	localVarFormParams := url.Values{}
+
+	if r.dryRun != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "dryRun", r.dryRun, "form", "")
+	} else {
+		var defaultValue bool = false
+		parameterAddToHeaderOrQuery(localVarQueryParams, "dryRun", defaultValue, "form", "")
+		r.dryRun = &defaultValue
+	}
+	if r.id != nil {
+		t := *r.id
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				parameterAddToHeaderOrQuery(localVarQueryParams, "id", s.Index(i).Interface(), "form", "multi")
+			}
+		} else {
+			parameterAddToHeaderOrQuery(localVarQueryParams, "id", t, "form", "multi")
+		}
+	}
+	if r.excludeId != nil {
+		t := *r.excludeId
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				parameterAddToHeaderOrQuery(localVarQueryParams, "excludeId", s.Index(i).Interface(), "form", "multi")
+			}
+		} else {
+			parameterAddToHeaderOrQuery(localVarQueryParams, "excludeId", t, "form", "multi")
+		}
+	}
+	if r.source != nil {
+		t := *r.source
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				parameterAddToHeaderOrQuery(localVarQueryParams, "source", s.Index(i).Interface(), "form", "multi")
+			}
+		} else {
+			parameterAddToHeaderOrQuery(localVarQueryParams, "source", t, "form", "multi")
+		}
+	}
+	if r.q != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "q", r.q, "form", "")
+	}
+	if r.sourceLabel != nil {
+		t := *r.sourceLabel
+		if reflect.TypeOf(t).Kind() == reflect.Slice {
+			s := reflect.ValueOf(t)
+			for i := 0; i < s.Len(); i++ {
+				parameterAddToHeaderOrQuery(localVarQueryParams, "sourceLabel", s.Index(i).Interface(), "form", "multi")
+			}
+		} else {
+			parameterAddToHeaderOrQuery(localVarQueryParams, "sourceLabel", t, "form", "multi")
+		}
+	}
+	if r.filterQuery != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "filterQuery", r.filterQuery, "form", "")
+	}
+	if r.pageSize != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "pageSize", r.pageSize, "form", "")
+	}
+	if r.orderBy != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "orderBy", r.orderBy, "form", "")
+	}
+	if r.sortOrder != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "sortOrder", r.sortOrder, "form", "")
+	}
+	if r.nextPageToken != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "nextPageToken", r.nextPageToken, "form", "")
+	}
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"text/csv", "application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := io.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = io.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		if localVarHTTPResponse.StatusCode == 400 {
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 401 {
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+			return localVarReturnValue, localVarHTTPResponse, newErr
+		}
+		if localVarHTTPResponse.StatusCode == 500 {
+			var v Error
+			err = a.client.decode(&v, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+			if err != nil {
+				newErr.error = err.Error()
+				return localVarReturnValue, localVarHTTPResponse, newErr
+			}
+			newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
+			newErr.model = v
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := &GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
 type ApiFindLabelsRequest struct {
 	ctx           context.Context
 	ApiService    *ModelCatalogServiceAPIService

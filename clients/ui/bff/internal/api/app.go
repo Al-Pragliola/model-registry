@@ -64,6 +64,7 @@ const (
 	CatalogModelName                    = "model_name"
 	CatalogPathPrefix                   = ApiPathPrefix + "/model_catalog"
 	CatalogModelListPath                = CatalogPathPrefix + "/models"
+	CatalogExportPath                   = CatalogPathPrefix + "/models/export"
 	CatalogFilterOptionListPath         = CatalogPathPrefix + "/models/filter_options"
 	CatalogSourceListPath               = CatalogPathPrefix + "/sources"
 	CatalogLabelsPath                   = CatalogPathPrefix + "/labels"
@@ -265,6 +266,7 @@ func (app *App) Routes() http.Handler {
 	apiRouter.DELETE(ModelTransferJobPath, app.AttachNamespace(app.RequireAccessToMRService(app.DeleteModelTransferJobHandler)))
 
 	// Model catalog HTTP client routes (requests that we forward to Model Catalog API)
+	apiRouter.GET(CatalogExportPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.ExportCatalogModelsHandler)))
 	apiRouter.GET(CatalogModelListPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetAllCatalogModelsAcrossSourcesHandler)))
 	apiRouter.GET(CatalogSourceListPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetAllCatalogSourcesHandler)))
 	apiRouter.GET(CatalogLabelsPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetCatalogLabelsHandler)))

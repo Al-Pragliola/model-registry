@@ -396,6 +396,40 @@ func AssertErrorRequired(obj model.Error) error {
 	return nil
 }
 
+// AssertExportDryRunResponseConstraints checks if the values respects the defined constraints
+func AssertExportDryRunResponseConstraints(obj model.ExportDryRunResponse) error {
+	for _, el := range obj.Items {
+		if err := AssertCatalogModelConstraints(el); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AssertExportDryRunResponseRequired checks if the required fields are not zero-ed
+func AssertExportDryRunResponseRequired(obj model.ExportDryRunResponse) error {
+	elements := map[string]interface{}{
+		"totalCount":    obj.TotalCount,
+		"columns":       obj.Columns,
+		"items":         obj.Items,
+		"pageSize":      obj.PageSize,
+		"nextPageToken": obj.NextPageToken,
+		"size":          obj.Size,
+	}
+	for name, el := range elements {
+		if isZero := IsZeroValue(el); isZero {
+			return &RequiredError{Field: name}
+		}
+	}
+
+	for _, el := range obj.Items {
+		if err := AssertCatalogModelRequired(el); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AssertFieldFilterConstraints checks if the values respects the defined constraints
 func AssertFieldFilterConstraints(obj model.FieldFilter) error {
 	return nil

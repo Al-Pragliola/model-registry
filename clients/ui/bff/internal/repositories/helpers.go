@@ -41,6 +41,19 @@ func FilterPageValues(values url.Values) url.Values {
 	if v := values.Get("artifactType"); v != "" {
 		result.Set("artifactType", v)
 	}
+	if v := values.Get("dryRun"); v != "" {
+		result.Set("dryRun", v)
+	}
+	if vals, ok := values["id"]; ok {
+		for _, v := range vals {
+			result.Add("id", v)
+		}
+	}
+	if vals, ok := values["excludeId"]; ok {
+		for _, v := range vals {
+			result.Add("excludeId", v)
+		}
+	}
 	if v := values.Get("targetRPS"); v != "" {
 		result.Set("targetRPS", v)
 	}

@@ -35,6 +35,7 @@ type MCPCatalogServiceAPIRouter interface {
 type ModelCatalogServiceAPIRouter interface {
 	FindLabels(http.ResponseWriter, *http.Request)
 	FindModels(http.ResponseWriter, *http.Request)
+	ExportModels(http.ResponseWriter, *http.Request)
 	FindModelsFilterOptions(http.ResponseWriter, *http.Request)
 	FindSources(http.ResponseWriter, *http.Request)
 	PreviewCatalogSource(http.ResponseWriter, *http.Request)
@@ -62,6 +63,7 @@ type MCPCatalogServiceAPIServicer interface {
 type ModelCatalogServiceAPIServicer interface {
 	FindLabels(context.Context, model.CatalogAssetType, string, string, model.SortOrder, string) (ImplResponse, error)
 	FindModels(context.Context, bool, int32, string, string, string, string, []string, string, []string, string, string, model.OrderByField, model.SortOrder, string) (ImplResponse, error)
+	ExportModels(context.Context, bool, []string, []string, []string, string, []string, string, string, model.OrderByField, model.SortOrder, string) (ImplResponse, error)
 	FindModelsFilterOptions(context.Context) (ImplResponse, error)
 	FindSources(context.Context, string, model.CatalogAssetType, string, model.OrderByField, model.SortOrder, string) (ImplResponse, error)
 	PreviewCatalogSource(context.Context, *os.File, string, string, string, *os.File) (ImplResponse, error)

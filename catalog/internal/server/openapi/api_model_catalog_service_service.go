@@ -671,6 +671,193 @@ func genLabelCmpFunc(orderByKey string, sortOrder model.SortOrder) func(sortable
 	}
 }
 
+func (m *ModelCatalogServiceAPIService) ExportModels(ctx context.Context, dryRun bool, ids []string, excludeIds []string, sourceIDs []string, q string, sourceLabels []string, filterQuery string, pageSize string, orderBy model.OrderByField, sortOrder model.SortOrder, nextPageToken string) (ImplResponse, error) {
+	// Clean empty slice entries from query parsing
+	if len(ids) == 1 && ids[0] == "" {
+		ids = nil
+	}
+	if len(excludeIds) == 1 && excludeIds[0] == "" {
+		excludeIds = nil
+	}
+	if len(sourceIDs) == 1 && sourceIDs[0] == "" {
+		sourceIDs = nil
+	}
+	if len(sourceLabels) == 1 && sourceLabels[0] == "" {
+		sourceLabels = nil
+	}
+
+	// Validate mutual exclusivity
+	if len(ids) > 0 && len(excludeIds) > 0 {
+		err := fmt.Errorf("id and excludeId cannot be used together")
+		return ErrorResponse(http.StatusBadRequest, err), err
+	}
+	hasFilters := len(sourceIDs) > 0 || q != "" || len(sourceLabels) > 0 || filterQuery != ""
+	if len(ids) > 0 && hasFilters {
+		err := fmt.Errorf("id cannot be used together with filter parameters (source, q, sourceLabel, filterQuery)")
+		return ErrorResponse(http.StatusBadRequest, err), err
+	}
+
+	// Resolve sourceLabels to sourceIDs
+	if len(sourceIDs) == 0 && len(sourceLabels) > 0 {
+		sources := m.sources.ByLabel(sourceLabels)
+		if len(sources) == 0 {
+			if dryRun {
+				return Response(http.StatusOK, model.ExportDryRunResponse{
+					TotalCount:    0,
+					Columns:       buildCSVHeaders(nil),
+					Items:         []model.CatalogModel{},
+					PageSize:      0,
+					NextPageToken: "",
+					Size:          0,
+				}), nil
+			}
+			f, err := writeCSVToFile([]model.CatalogModel{})
+			if err != nil {
+				return ErrorResponse(http.StatusInternalServerError, err), err
+			}
+			return Response(http.StatusOK, f), nil
+		}
+		sourceIDs = make([]string, len(sources))
+		for i, source := range sources {
+			sourceIDs[i] = source.Id
+		}
+	}
+
+	if len(sourceIDs) > 0 && len(sourceLabels) > 0 {
+		err := fmt.Errorf("source and sourceLabel cannot be used together")
+		return ErrorResponse(http.StatusBadRequest, err), err
+	}
+
+	if orderBy == "" {
+		orderBy = model.ORDERBYFIELD_NAME
+	}
+
+	// Fetch all matching models by walking cursor pagination
+	allModels, err := m.fetchAllModels(ctx, catalog.ListModelsParams{
+		Query:       q,
+		FilterQuery: filterQuery,
+		SourceIDs:   sourceIDs,
+		OrderBy:     orderBy,
+		SortOrder:   sortOrder,
+	})
+	if err != nil {
+		return ErrorResponse(http.StatusInternalServerError, err), err
+	}
+
+	// Apply ID filtering
+	if len(ids) > 0 {
+		idSet := make(map[string]struct{}, len(ids))
+		for _, id := range ids {
+			idSet[id] = struct{}{}
+		}
+		filtered := make([]model.CatalogModel, 0)
+		for i := range allModels {
+			if allModels[i].Id != nil {
+				if _, ok := idSet[*allModels[i].Id]; ok {
+					filtered = append(filtered, allModels[i])
+				}
+			}
+		}
+		allModels = filtered
+	}
+	if len(excludeIds) > 0 {
+		excludeSet := make(map[string]struct{}, len(excludeIds))
+		for _, id := range excludeIds {
+			excludeSet[id] = struct{}{}
+		}
+		filtered := make([]model.CatalogModel, 0, len(allModels))
+		for i := range allModels {
+			if allModels[i].Id == nil {
+				filtered = append(filtered, allModels[i])
+				continue
+			}
+			if _, excluded := excludeSet[*allModels[i].Id]; !excluded {
+				filtered = append(filtered, allModels[i])
+			}
+		}
+		allModels = filtered
+	}
+
+	if dryRun {
+		return m.handleExportDryRun(allModels, pageSize, nextPageToken)
+	}
+
+	f, err := writeCSVToFile(allModels)
+	if err != nil {
+		return ErrorResponse(http.StatusInternalServerError, err), err
+	}
+	return Response(http.StatusOK, f), nil
+}
+
+func (m *ModelCatalogServiceAPIService) fetchAllModels(ctx context.Context, params catalog.ListModelsParams) ([]model.CatalogModel, error) {
+	const batchSize int32 = 500
+	var allModels []model.CatalogModel
+	emptyToken := ""
+	nextToken := &emptyToken
+
+	for {
+		params.PageSize = batchSize
+		params.NextPageToken = nextToken
+
+		result, err := m.provider.ListModels(ctx, params)
+		if err != nil {
+			return nil, err
+		}
+
+		allModels = append(allModels, result.Items...)
+
+		if result.NextPageToken == "" {
+			break
+		}
+		token := result.NextPageToken
+		nextToken = &token
+	}
+	return allModels, nil
+}
+
+func (m *ModelCatalogServiceAPIService) handleExportDryRun(allModels []model.CatalogModel, pageSizeStr string, nextPageToken string) (ImplResponse, error) {
+	customKeys := collectCustomPropertyKeys(allModels)
+	columns := buildCSVHeaders(customKeys)
+	totalCount := int32(len(allModels))
+
+	pageSizeInt, err := parsePaginationParams(pageSizeStr, nextPageToken)
+	if err != nil {
+		return ErrorResponse(http.StatusBadRequest, err), err
+	}
+
+	// Manual in-memory pagination
+	startIdx := 0
+	if nextPageToken != "" {
+		for i, m := range allModels {
+			if m.Id != nil && *m.Id == nextPageToken {
+				startIdx = i + 1
+				break
+			}
+		}
+	}
+
+	endIdx := min(startIdx+int(pageSizeInt), len(allModels))
+
+	pagedModels := allModels[startIdx:endIdx]
+
+	var newNextPageToken string
+	if endIdx < len(allModels) && len(pagedModels) > 0 {
+		lastModel := pagedModels[len(pagedModels)-1]
+		if lastModel.Id != nil {
+			newNextPageToken = *lastModel.Id
+		}
+	}
+
+	return Response(http.StatusOK, model.ExportDryRunResponse{
+		TotalCount:    totalCount,
+		Columns:       columns,
+		Items:         pagedModels,
+		PageSize:      pageSizeInt,
+		NextPageToken: newNextPageToken,
+		Size:          int32(len(pagedModels)),
+	}), nil
+}
+
 var _ ModelCatalogServiceAPIServicer = &ModelCatalogServiceAPIService{}
 
 // NewModelCatalogServiceAPIService creates a default api service
