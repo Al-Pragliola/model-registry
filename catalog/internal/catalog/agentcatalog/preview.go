@@ -67,9 +67,9 @@ func loadAgentNamesFromSource(config *AgentPreviewConfig, catalogDataBytes []byt
 	if len(catalogDataBytes) > 0 {
 		catalogBytes = catalogDataBytes
 	} else {
-		path, ok := config.Properties[yamlAgentCatalogPathKey].(string)
+		path, ok := config.Properties[YamlAgentCatalogPathKey].(string)
 		if !ok || path == "" {
-			return nil, fmt.Errorf("missing required property: %s (provide catalogData file or set yamlCatalogPath in config)", yamlAgentCatalogPathKey)
+			return nil, fmt.Errorf("missing required property: %s (provide catalogData file or set yamlCatalogPath in config)", YamlAgentCatalogPathKey)
 		}
 
 		if !filepath.IsAbs(path) {
@@ -87,7 +87,7 @@ func loadAgentNamesFromSource(config *AgentPreviewConfig, catalogDataBytes []byt
 		}
 	}
 
-	var catalog yamlAgentCatalog
+	var catalog YamlAgentCatalog
 	if err := yaml.UnmarshalStrict(catalogBytes, &catalog); err != nil {
 		return nil, fmt.Errorf("failed to parse agent catalog file: %w", err)
 	}

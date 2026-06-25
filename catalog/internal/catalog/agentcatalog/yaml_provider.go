@@ -14,18 +14,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-const yamlAgentCatalogPathKey = "yamlCatalogPath"
+const YamlAgentCatalogPathKey = "yamlCatalogPath"
 
-type yamlAgentEnvVar struct {
+type YamlAgentEnvVar struct {
 	Name     string `yaml:"name" json:"name"`
 	Required bool   `yaml:"required" json:"required"`
 }
 
-type yamlAgentArtifact struct {
+type YamlAgentArtifact struct {
 	URI string `yaml:"uri" json:"uri"`
 }
 
-type yamlAgent struct {
+type YamlAgent struct {
 	Name                     string             `yaml:"name" json:"name"`
 	DisplayName              *string            `yaml:"displayName,omitempty" json:"displayName,omitempty"`
 	Description              *string            `yaml:"description,omitempty" json:"description,omitempty"`
@@ -37,19 +37,19 @@ type yamlAgent struct {
 	Logo                     *string            `yaml:"logo,omitempty" json:"logo,omitempty"`
 	RepositoryUrl            *string            `yaml:"repositoryUrl,omitempty" json:"repositoryUrl,omitempty"`
 	PublishedDate            *string            `yaml:"publishedDate,omitempty" json:"publishedDate,omitempty"`
-	Env                      []yamlAgentEnvVar  `yaml:"env,omitempty" json:"env,omitempty"`
-	Artifacts                []yamlAgentArtifact `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
+	Env                      []YamlAgentEnvVar  `yaml:"env,omitempty" json:"env,omitempty"`
+	Artifacts                []YamlAgentArtifact `yaml:"artifacts,omitempty" json:"artifacts,omitempty"`
 	CreateTimeSinceEpoch     *string            `yaml:"createTimeSinceEpoch,omitempty" json:"createTimeSinceEpoch,omitempty"`
 	LastUpdateTimeSinceEpoch *string            `yaml:"lastUpdateTimeSinceEpoch,omitempty" json:"lastUpdateTimeSinceEpoch,omitempty"`
 }
 
-type yamlAgentCatalog struct {
+type YamlAgentCatalog struct {
 	Source string      `yaml:"source" json:"source"`
-	Agents []yamlAgent `yaml:"agents" json:"agents"`
+	Agents []YamlAgent `yaml:"agents" json:"agents"`
 }
 
 func (l *AgentLoader) loadFromYAML(_ context.Context, sourceID string, source basecatalog.AgentSource) error {
-	yamlPath, ok := source.Properties[yamlAgentCatalogPathKey].(string)
+	yamlPath, ok := source.Properties[YamlAgentCatalogPathKey].(string)
 	if !ok {
 		return fmt.Errorf("yamlCatalogPath property is required for YAML agent provider")
 	}
@@ -64,7 +64,7 @@ func (l *AgentLoader) loadFromYAML(_ context.Context, sourceID string, source ba
 		return fmt.Errorf("error reading YAML file %s: %w", yamlPath, err)
 	}
 
-	var catalog yamlAgentCatalog
+	var catalog YamlAgentCatalog
 	if err := yaml.Unmarshal(data, &catalog); err != nil {
 		return fmt.Errorf("error parsing YAML from %s: %w", yamlPath, err)
 	}
@@ -97,7 +97,7 @@ func (l *AgentLoader) loadFromYAML(_ context.Context, sourceID string, source ba
 	return nil
 }
 
-func convertYAMLAgentToEntity(ya yamlAgent, sourceID string) models.Agent {
+func convertYAMLAgentToEntity(ya YamlAgent, sourceID string) models.Agent {
 	attrs := &models.AgentAttributes{
 		Name: &ya.Name,
 	}

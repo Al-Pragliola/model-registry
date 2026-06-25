@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/golang/glog"
+	"github.com/kubeflow/hub/catalog/internal/catalog/agentcatalog"
 	model "github.com/kubeflow/hub/catalog/pkg/openapi"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -127,11 +128,7 @@ func loadAgentNamesFromYAML(config *PreviewConfig, catalogDataBytes []byte) ([]s
 		}
 	}
 
-	var parsed struct {
-		Agents []struct {
-			Name string `json:"name" yaml:"name"`
-		} `json:"agents" yaml:"agents"`
-	}
+	var parsed agentcatalog.YamlAgentCatalog
 	if err := yaml.UnmarshalStrict(catalogBytes, &parsed); err != nil {
 		return nil, fmt.Errorf("failed to parse agent catalog file: %w", err)
 	}
