@@ -16,6 +16,9 @@ import {
   HelperText,
   HelperTextItem,
   FileUpload,
+  Sidebar,
+  SidebarPanel,
+  SidebarContent,
 } from '@patternfly/react-core';
 import { OpenDrawerRightIcon } from '@patternfly/react-icons';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +39,8 @@ import {
   useManageAgentSourceData,
 } from '~/app/pages/agentCatalogSettings/useManageAgentSourceData';
 import AgentVisibilitySection from './AgentVisibilitySection';
+import AgentPreviewPanel from './AgentPreviewPanel';
+import { useAgentSourcePreview } from '~/app/pages/agentCatalogSettings/useAgentSourcePreview';
 
 type ManageAgentSourceFormProps = {
   existingSourceConfig?: CatalogSourceConfig;
@@ -137,6 +142,13 @@ const ManageAgentSourceForm: React.FC<ManageAgentSourceFormProps> = ({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<Error | undefined>(undefined);
   const { apiState, refreshCatalogSourceConfigs } = React.useContext(AgentCatalogSettingsContext);
+
+  const preview = useAgentSourcePreview({
+    formData,
+    existingSourceConfig,
+    apiState,
+    isEditMode,
+  });
 
   // Name validation state
   const [isNameTouched, setIsNameTouched] = React.useState(false);
@@ -266,6 +278,8 @@ const ManageAgentSourceForm: React.FC<ManageAgentSourceFormProps> = ({
 
   return (
     <>
+      <Sidebar hasBorder isPanelRight hasGutter>
+        <SidebarContent>
       <Form isWidthLimited>
         <Stack hasGutter>
           {/* Source name section */}
@@ -374,6 +388,11 @@ const ManageAgentSourceForm: React.FC<ManageAgentSourceFormProps> = ({
           </StackItem>
         </Stack>
       </Form>
+        </SidebarContent>
+        <SidebarPanel width={{ default: 'width_50' }}>
+          <AgentPreviewPanel preview={preview} />
+        </SidebarPanel>
+      </Sidebar>
 
       {/* Footer */}
       <PageSection hasBodyWrapper={false} stickyOnBreakpoint={{ default: 'bottom' }}>
