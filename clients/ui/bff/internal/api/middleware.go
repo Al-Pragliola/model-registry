@@ -112,7 +112,7 @@ func (app *App) AttachModelCatalogRESTClient(next func(http.ResponseWriter, *htt
 		apiPath := repositories.ModelCatalogAPIPath
 		if strings.HasPrefix(r.URL.Path, McpServerCatalogPathPrefix) {
 			apiPath = repositories.McpCatalogAPIPath
-		} else if strings.HasPrefix(r.URL.Path, AgentCatalogPathPrefix) {
+		} else if strings.HasPrefix(r.URL.Path, AgentCatalogPathPrefix) || strings.HasPrefix(r.URL.Path, AgentCatalogSettingsPathPrefix) {
 			apiPath = repositories.AgentCatalogAPIPath
 		}
 
