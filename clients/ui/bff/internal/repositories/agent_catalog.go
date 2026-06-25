@@ -93,10 +93,18 @@ func (a *AgentCatalog) CreateAgentSourcePreview(client httpclient.HTTPClientInte
 		return nil, fmt.Errorf("error creating config form file: %w", err)
 	}
 
+	includedAgents := payload.IncludedAgents
+	if len(includedAgents) == 0 {
+		includedAgents = payload.IncludedModels
+	}
+	excludedAgents := payload.ExcludedAgents
+	if len(excludedAgents) == 0 {
+		excludedAgents = payload.ExcludedModels
+	}
 	configData := map[string]interface{}{
 		"type":           payload.Type,
-		"includedAgents": payload.IncludedAgents,
-		"excludedAgents": payload.ExcludedAgents,
+		"includedAgents": includedAgents,
+		"excludedAgents": excludedAgents,
 	}
 
 	properties := make(map[string]interface{})
