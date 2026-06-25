@@ -13,9 +13,12 @@ import (
 
 // PreviewConfig represents the parsed preview request configuration.
 type PreviewConfig struct {
+	AssetType      string         `json:"assetType,omitempty" yaml:"assetType,omitempty"`
 	Type           string         `json:"type" yaml:"type"`
 	IncludedModels []string       `json:"includedModels,omitempty" yaml:"includedModels,omitempty"`
 	ExcludedModels []string       `json:"excludedModels,omitempty" yaml:"excludedModels,omitempty"`
+	IncludedAgents []string       `json:"includedAgents,omitempty" yaml:"includedAgents,omitempty"`
+	ExcludedAgents []string       `json:"excludedAgents,omitempty" yaml:"excludedAgents,omitempty"`
 	Properties     map[string]any `json:"properties,omitempty" yaml:"properties,omitempty"`
 }
 
@@ -32,9 +35,14 @@ func ParsePreviewConfig(configBytes []byte) (*PreviewConfig, error) {
 		return nil, fmt.Errorf("missing required field: type")
 	}
 
-	// Validate filter patterns early
-	if err := ValidateSourceFilters(config.IncludedModels, config.ExcludedModels); err != nil {
-		return nil, err
+	if config.AssetType == "agents" {
+		if err := ValidateSourceFilters(config.IncludedAgents, config.ExcludedAgents); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := ValidateSourceFilters(config.IncludedModels, config.ExcludedModels); err != nil {
+			return nil, err
+		}
 	}
 
 	return &config, nil
@@ -44,19 +52,20 @@ func ParsePreviewConfig(configBytes []byte) (*PreviewConfig, error) {
 // preview results showing which models would be included or excluded.
 // If catalogDataBytes is provided, it will be used directly instead of reading from yamlCatalogPath.
 func PreviewSourceModels(ctx context.Context, config *PreviewConfig, catalogDataBytes []byte) ([]model.ModelPreviewResult, error) {
-	// Load all model names from the source (without filtering)
+	if config.AssetType == "agents" {
+		return previewSourceAgents(ctx, config, catalogDataBytes)
+	}
+
 	modelNames, err := loadModelNamesFromSource(ctx, config, catalogDataBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a ModelFilter from the config
 	filter, err := NewModelFilter(config.IncludedModels, config.ExcludedModels)
 	if err != nil {
 		return nil, fmt.Errorf("invalid filter configuration: %w", err)
 	}
 
-	// Create preview results for each model
 	results := make([]model.ModelPreviewResult, 0, len(modelNames))
 	for _, name := range modelNames {
 		included := filter == nil || filter.Allows(name)
@@ -67,6 +76,72 @@ func PreviewSourceModels(ctx context.Context, config *PreviewConfig, catalogData
 	}
 
 	return results, nil
+}
+
+func previewSourceAgents(ctx context.Context, config *PreviewConfig, catalogDataBytes []byte) ([]model.ModelPreviewResult, error) {
+	agentNames, err := loadAgentNamesFromYAML(config, catalogDataBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	filter, err := NewModelFilter(config.IncludedAgents, config.ExcludedAgents)
+	if err != nil {
+		return nil, fmt.Errorf("invalid filter configuration: %w", err)
+	}
+
+	results := make([]model.ModelPreviewResult, 0, len(agentNames))
+	for _, name := range agentNames {
+		included := filter == nil || filter.Allows(name)
+		results = append(results, model.ModelPreviewResult{
+			Name:     name,
+			Included: included,
+		})
+	}
+
+	return results, nil
+}
+
+func loadAgentNamesFromYAML(config *PreviewConfig, catalogDataBytes []byte) ([]string, error) {
+	var catalogBytes []byte
+
+	if len(catalogDataBytes) > 0 {
+		catalogBytes = catalogDataBytes
+	} else {
+		path, ok := config.Properties[yamlCatalogPathKey].(string)
+		if !ok || path == "" {
+			return nil, fmt.Errorf("missing required property: %s (provide catalogData file or set yamlCatalogPath in config)", yamlCatalogPathKey)
+		}
+
+		if !filepath.IsAbs(path) {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get working directory: %w", err)
+			}
+			path = filepath.Join(cwd, path)
+		}
+
+		var err error
+		catalogBytes, err = os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read catalog file %s: %w", path, err)
+		}
+	}
+
+	var parsed struct {
+		Agents []struct {
+			Name string `json:"name" yaml:"name"`
+		} `json:"agents" yaml:"agents"`
+	}
+	if err := yaml.UnmarshalStrict(catalogBytes, &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse agent catalog file: %w", err)
+	}
+
+	names := make([]string, 0, len(parsed.Agents))
+	for _, a := range parsed.Agents {
+		names = append(names, a.Name)
+	}
+
+	return names, nil
 }
 
 // loadModelNamesFromSource loads model names from the specified source type.

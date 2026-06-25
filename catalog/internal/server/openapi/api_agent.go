@@ -13,7 +13,6 @@ package openapi
 import (
 	"context"
 	"net/http"
-	"os"
 
 	model "github.com/kubeflow/hub/catalog/pkg/openapi"
 )
@@ -25,8 +24,6 @@ type AgentCatalogServiceAPIRouter interface {
 	FindAgents(http.ResponseWriter, *http.Request)
 	GetAgentFilterOptions(http.ResponseWriter, *http.Request)
 	GetAgent(http.ResponseWriter, *http.Request)
-	FindAgentSources(http.ResponseWriter, *http.Request)
-	PreviewAgentCatalogSource(http.ResponseWriter, *http.Request)
 }
 
 // AgentCatalogServiceAPIServicer defines the api actions for the AgentCatalogServiceAPI service
@@ -37,6 +34,4 @@ type AgentCatalogServiceAPIServicer interface {
 	FindAgents(context.Context, string, string, []string, string, string, model.OrderByField, model.SortOrder, string) (ImplResponse, error)
 	GetAgentFilterOptions(context.Context) (ImplResponse, error)
 	GetAgent(context.Context, string) (ImplResponse, error)
-	FindAgentSources(context.Context) (ImplResponse, error)
-	PreviewAgentCatalogSource(context.Context, *os.File, string, string, string, *os.File) (ImplResponse, error)
 }

@@ -102,6 +102,7 @@ func (a *AgentCatalog) CreateAgentSourcePreview(client httpclient.HTTPClientInte
 		excludedAgents = payload.ExcludedModels
 	}
 	configData := map[string]interface{}{
+		"assetType":      "agents",
 		"type":           payload.Type,
 		"includedAgents": includedAgents,
 		"excludedAgents": excludedAgents,

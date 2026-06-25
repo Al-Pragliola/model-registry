@@ -12,7 +12,6 @@ package openapi
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -71,18 +70,6 @@ func (c *AgentCatalogServiceAPIController) Routes() Routes {
 			"/api/agent_catalog/v1alpha1/agents/{agent_id}",
 			c.GetAgent,
 		},
-		"FindAgentSources": Route{
-			"FindAgentSources",
-			strings.ToUpper("Get"),
-			"/api/agent_catalog/v1alpha1/sources",
-			c.FindAgentSources,
-		},
-		"PreviewAgentCatalogSource": Route{
-			"PreviewAgentCatalogSource",
-			strings.ToUpper("Post"),
-			"/api/agent_catalog/v1alpha1/sources/preview",
-			c.PreviewAgentCatalogSource,
-		},
 	}
 }
 
@@ -106,18 +93,6 @@ func (c *AgentCatalogServiceAPIController) OrderedRoutes() []Route {
 			strings.ToUpper("Get"),
 			"/api/agent_catalog/v1alpha1/agents/{agent_id}",
 			c.GetAgent,
-		},
-		Route{
-			"FindAgentSources",
-			strings.ToUpper("Get"),
-			"/api/agent_catalog/v1alpha1/sources",
-			c.FindAgentSources,
-		},
-		Route{
-			"PreviewAgentCatalogSource",
-			strings.ToUpper("Post"),
-			"/api/agent_catalog/v1alpha1/sources/preview",
-			c.PreviewAgentCatalogSource,
 		},
 	}
 }
@@ -212,87 +187,6 @@ func (c *AgentCatalogServiceAPIController) GetAgent(w http.ResponseWriter, r *ht
 		return
 	}
 	result, err := c.service.GetAgent(r.Context(), agentIdParam)
-	// If an error occurred, encode the error with the status code
-	if err != nil {
-		c.errorHandler(w, r, err, &result)
-		return
-	}
-	// If no error, encode the body and the result code
-	_ = EncodeJSONResponse(result.Body, &result.Code, w)
-}
-
-// FindAgentSources - List agent catalog sources.
-func (c *AgentCatalogServiceAPIController) FindAgentSources(w http.ResponseWriter, r *http.Request) {
-	result, err := c.service.FindAgentSources(r.Context())
-	// If an error occurred, encode the error with the status code
-	if err != nil {
-		c.errorHandler(w, r, err, &result)
-		return
-	}
-	// If no error, encode the body and the result code
-	_ = EncodeJSONResponse(result.Body, &result.Code, w)
-}
-
-// PreviewAgentCatalogSource - Preview agent catalog source configuration.
-func (c *AgentCatalogServiceAPIController) PreviewAgentCatalogSource(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
-		return
-	}
-	query, err := parseQuery(r.URL.RawQuery)
-	if err != nil {
-		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
-		return
-	}
-	var configParam *os.File
-	{
-		param, err := ReadFormFileToTempFile(r, "config")
-		if err != nil {
-			c.errorHandler(w, r, &ParsingError{Param: "config", Err: err}, nil)
-			return
-		}
-
-		configParam = param
-	}
-
-	var pageSizeParam string
-	if query.Has("pageSize") {
-		param := query.Get("pageSize")
-
-		pageSizeParam = param
-	} else {
-	}
-	var nextPageTokenParam string
-	if query.Has("nextPageToken") {
-		param := query.Get("nextPageToken")
-
-		nextPageTokenParam = param
-	} else {
-	}
-	var filterStatusParam string
-	if query.Has("filterStatus") {
-		param := query.Get("filterStatus")
-
-		filterStatusParam = param
-	} else {
-		param := "all"
-		filterStatusParam = param
-	}
-	var catalogDataParam *os.File
-	{
-		param, err := ReadFormFileToTempFile(r, "catalogData")
-		if err != nil {
-			// Optional file parameter - ignore missing file error
-			if err != http.ErrMissingFile {
-				c.errorHandler(w, r, &ParsingError{Param: "catalogData", Err: err}, nil)
-				return
-			}
-		}
-
-		catalogDataParam = param
-	}
-
-	result, err := c.service.PreviewAgentCatalogSource(r.Context(), configParam, pageSizeParam, nextPageTokenParam, filterStatusParam, catalogDataParam)
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)
