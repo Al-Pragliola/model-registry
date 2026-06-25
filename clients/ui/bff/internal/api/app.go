@@ -101,7 +101,7 @@ const (
 	AgentCatalogSettingsPathPrefix           = SettingsPath + "/agent_catalog"
 	AgentCatalogSettingsSourceConfigListPath = AgentCatalogSettingsPathPrefix + "/source_configs"
 	AgentCatalogSettingsSourceConfigPath     = AgentCatalogSettingsSourceConfigListPath + "/:" + CatalogSourceId
-	AgentCatalogSourcePreviewPath            = AgentCatalogPathPrefix + "/sources/preview"
+	AgentCatalogSourcePreviewPath            = AgentCatalogSettingsPathPrefix + "/source_preview"
 )
 
 type App struct {
