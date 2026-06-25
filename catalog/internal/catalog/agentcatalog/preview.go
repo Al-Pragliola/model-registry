@@ -34,7 +34,7 @@ func ParseAgentPreviewConfig(configBytes []byte) (*AgentPreviewConfig, error) {
 	return &config, nil
 }
 
-func PreviewSourceAgents(_ context.Context, config *AgentPreviewConfig, catalogDataBytes []byte) ([]model.AgentPreviewResult, error) {
+func PreviewSourceAgents(_ context.Context, config *AgentPreviewConfig, catalogDataBytes []byte) ([]model.ModelPreviewResult, error) {
 	agentNames, err := loadAgentNamesFromSource(config, catalogDataBytes)
 	if err != nil {
 		return nil, err
@@ -45,10 +45,10 @@ func PreviewSourceAgents(_ context.Context, config *AgentPreviewConfig, catalogD
 		return nil, fmt.Errorf("invalid filter configuration: %w", err)
 	}
 
-	results := make([]model.AgentPreviewResult, 0, len(agentNames))
+	results := make([]model.ModelPreviewResult, 0, len(agentNames))
 	for _, name := range agentNames {
 		included := filter == nil || filter.Allows(name)
-		results = append(results, model.AgentPreviewResult{
+		results = append(results, model.ModelPreviewResult{
 			Name:     name,
 			Included: included,
 		})

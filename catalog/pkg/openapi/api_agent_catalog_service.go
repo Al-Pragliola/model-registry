@@ -665,7 +665,7 @@ func (r ApiPreviewAgentCatalogSourceRequest) CatalogData(catalogData *os.File) A
 	return r
 }
 
-func (r ApiPreviewAgentCatalogSourceRequest) Execute() (*PreviewAgentCatalogSource200Response, *http.Response, error) {
+func (r ApiPreviewAgentCatalogSourceRequest) Execute() (*CatalogSourcePreviewResponse, *http.Response, error) {
 	return r.ApiService.PreviewAgentCatalogSourceExecute(r)
 }
 
@@ -696,13 +696,13 @@ func (a *AgentCatalogServiceAPIService) PreviewAgentCatalogSource(ctx context.Co
 
 // Execute executes the request
 //
-//	@return PreviewAgentCatalogSource200Response
-func (a *AgentCatalogServiceAPIService) PreviewAgentCatalogSourceExecute(r ApiPreviewAgentCatalogSourceRequest) (*PreviewAgentCatalogSource200Response, *http.Response, error) {
+//	@return CatalogSourcePreviewResponse
+func (a *AgentCatalogServiceAPIService) PreviewAgentCatalogSourceExecute(r ApiPreviewAgentCatalogSourceRequest) (*CatalogSourcePreviewResponse, *http.Response, error) {
 	var (
 		localVarHTTPMethod  = http.MethodPost
 		localVarPostBody    interface{}
 		formFiles           []formFile
-		localVarReturnValue *PreviewAgentCatalogSource200Response
+		localVarReturnValue *CatalogSourcePreviewResponse
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "AgentCatalogServiceAPIService.PreviewAgentCatalogSource")

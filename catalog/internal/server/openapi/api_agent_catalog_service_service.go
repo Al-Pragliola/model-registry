@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	agentcatalog "github.com/kubeflow/hub/catalog/internal/catalog/agentcatalog"
 	"github.com/kubeflow/hub/catalog/internal/catalog"
+	agentcatalog "github.com/kubeflow/hub/catalog/internal/catalog/agentcatalog"
 	model "github.com/kubeflow/hub/catalog/pkg/openapi"
 	"github.com/kubeflow/hub/pkg/api"
 )
@@ -154,19 +154,20 @@ func (s *AgentCatalogServiceAPIService) PreviewAgentCatalogSource(ctx context.Co
 		return ErrorResponse(http.StatusUnprocessableEntity, fmt.Errorf("failed to load agents: %w", err)), err
 	}
 
-	var filteredResults []model.AgentPreviewResult
+	var filteredResults []model.ModelPreviewResult
 	for _, result := range previewResults {
+		item := model.ModelPreviewResult{Name: result.Name, Included: result.Included}
 		switch filterStatus {
 		case "included":
 			if result.Included {
-				filteredResults = append(filteredResults, result)
+				filteredResults = append(filteredResults, item)
 			}
 		case "excluded":
 			if !result.Included {
-				filteredResults = append(filteredResults, result)
+				filteredResults = append(filteredResults, item)
 			}
 		default:
-			filteredResults = append(filteredResults, result)
+			filteredResults = append(filteredResults, item)
 		}
 	}
 
@@ -180,7 +181,6 @@ func (s *AgentCatalogServiceAPIService) PreviewAgentCatalogSource(ctx context.Co
 	}
 	totalCount := int32(len(previewResults))
 
-	// Apply pagination
 	start := int32(0)
 	if nextPageTokenParam != "" {
 		parsed, err := strconv.ParseInt(nextPageTokenParam, 10, 32)
@@ -204,15 +204,16 @@ func (s *AgentCatalogServiceAPIService) PreviewAgentCatalogSource(ctx context.Co
 		nextToken = fmt.Sprintf("%d", end)
 	}
 
-	_ = nextToken
-
-	response := model.PreviewAgentCatalogSource200Response{
-		Agents: pagedResults,
-		Summary: &model.PreviewAgentCatalogSource200ResponseSummary{
-			TotalCount:    &totalCount,
-			IncludedCount: &includedCount,
-			ExcludedCount: &excludedCount,
+	response := model.CatalogSourcePreviewResponse{
+		Items: pagedResults,
+		Summary: model.CatalogSourcePreviewResponseAllOfSummary{
+			TotalModels:    totalCount,
+			IncludedModels: includedCount,
+			ExcludedModels: excludedCount,
 		},
+		NextPageToken: nextToken,
+		PageSize:      pageSize,
+		Size:          int32(len(pagedResults)),
 	}
 
 	return Response(http.StatusOK, response), nil

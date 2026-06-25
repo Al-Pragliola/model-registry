@@ -92,26 +92,6 @@ func AssertAgentListRequired(obj model.AgentList) error {
 	return nil
 }
 
-// AssertAgentPreviewResultConstraints checks if the values respects the defined constraints
-func AssertAgentPreviewResultConstraints(obj model.AgentPreviewResult) error {
-	return nil
-}
-
-// AssertAgentPreviewResultRequired checks if the required fields are not zero-ed
-func AssertAgentPreviewResultRequired(obj model.AgentPreviewResult) error {
-	elements := map[string]interface{}{
-		"name":     obj.Name,
-		"included": obj.Included,
-	}
-	for name, el := range elements {
-		if isZero := IsZeroValue(el); isZero {
-			return &RequiredError{Field: name}
-		}
-	}
-
-	return nil
-}
-
 // AssertAgentRequired checks if the required fields are not zero-ed
 func AssertAgentRequired(obj model.Agent) error {
 	elements := map[string]interface{}{
@@ -1309,46 +1289,6 @@ func AssertOrderByFieldConstraints(obj model.OrderByField) error {
 
 // AssertOrderByFieldRequired checks if the required fields are not zero-ed
 func AssertOrderByFieldRequired(obj model.OrderByField) error {
-	return nil
-}
-
-// AssertPreviewAgentCatalogSource200ResponseConstraints checks if the values respects the defined constraints
-func AssertPreviewAgentCatalogSource200ResponseConstraints(obj model.PreviewAgentCatalogSource200Response) error {
-	for _, el := range obj.Agents {
-		if err := AssertAgentPreviewResultConstraints(el); err != nil {
-			return err
-		}
-	}
-	if obj.Summary != nil {
-		if err := AssertPreviewAgentCatalogSource200ResponseSummaryConstraints(*obj.Summary); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// AssertPreviewAgentCatalogSource200ResponseRequired checks if the required fields are not zero-ed
-func AssertPreviewAgentCatalogSource200ResponseRequired(obj model.PreviewAgentCatalogSource200Response) error {
-	for _, el := range obj.Agents {
-		if err := AssertAgentPreviewResultRequired(el); err != nil {
-			return err
-		}
-	}
-	if obj.Summary != nil {
-		if err := AssertPreviewAgentCatalogSource200ResponseSummaryRequired(*obj.Summary); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// AssertPreviewAgentCatalogSource200ResponseSummaryConstraints checks if the values respects the defined constraints
-func AssertPreviewAgentCatalogSource200ResponseSummaryConstraints(obj model.PreviewAgentCatalogSource200ResponseSummary) error {
-	return nil
-}
-
-// AssertPreviewAgentCatalogSource200ResponseSummaryRequired checks if the required fields are not zero-ed
-func AssertPreviewAgentCatalogSource200ResponseSummaryRequired(obj model.PreviewAgentCatalogSource200ResponseSummary) error {
 	return nil
 }
 

@@ -169,7 +169,7 @@ paths:
           description: Filter results by inclusion status.
       responses:
         "200":
-          $ref: "#/components/responses/AgentSourcePreviewResponse"
+          $ref: "#/components/responses/CatalogSourcePreviewResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -286,20 +286,6 @@ components:
               format: uri
               description: OCI artifact URI.
 
-    AgentPreviewResult:
-      description: Preview result for a single agent showing inclusion status.
-      type: object
-      required:
-        - name
-        - included
-      properties:
-        name:
-          type: string
-          description: Agent name.
-        included:
-          type: boolean
-          description: Whether this agent would be included based on the configured filters.
-
     AgentList:
       description: A list of agent entities.
       type: object
@@ -328,25 +314,3 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Agent"
-    AgentSourcePreviewResponse:
-      description: Preview results for an agent catalog source configuration.
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              agents:
-                description: Array of agent preview results.
-                type: array
-                items:
-                  $ref: "#/components/schemas/AgentPreviewResult"
-              summary:
-                description: Summary of the preview results.
-                type: object
-                properties:
-                  totalCount:
-                    type: integer
-                  includedCount:
-                    type: integer
-                  excludedCount:
-                    type: integer
