@@ -8,7 +8,7 @@ import type { CatalogSourceList } from '~/app/shared/types/catalogTypes';
 import type { CatalogSourceConfigList } from '~/app/modelCatalogTypes';
 import { BFF_API_VERSION, URL_PREFIX } from '~/app/utilities/const';
 import useModelCatalogAPIState from '~/app/hooks/modelCatalog/useModelCatalogAPIState';
-import { useCatalogSourcesWithPolling } from '~/app/hooks/modelCatalogSettings/useCatalogSourcesWithPolling';
+import { useAgentCatalogSourcesWithPolling } from '~/app/hooks/agentCatalogSettings/useAgentCatalogSourcesWithPolling';
 
 export type AgentCatalogSettingsContextType = {
   apiState: AgentCatalogSettingsAPIState;
@@ -45,7 +45,7 @@ export const AgentCatalogSettingsContextProvider: React.FC<
   AgentCatalogSettingsContextProviderProps
 > = ({ children }) => {
   const hostPath = `${URL_PREFIX}/api/${BFF_API_VERSION}/settings/agent_catalog`;
-  const catalogHostPath = `${URL_PREFIX}/api/${BFF_API_VERSION}/agent_catalog`;
+  const catalogHostPath = `${URL_PREFIX}/api/${BFF_API_VERSION}/model_catalog`;
   const queryParams = useQueryParamNamespaces();
   const [apiState, refreshAPIState] = useAgentCatalogSettingsAPIState(hostPath, queryParams);
   const [catalogAPIState] = useModelCatalogAPIState(catalogHostPath, queryParams);
@@ -58,7 +58,7 @@ export const AgentCatalogSettingsContextProvider: React.FC<
 
   // Fetch catalog sources with polling for status updates
   const [catalogSources, catalogSourcesLoaded, catalogSourcesLoadError, refreshCatalogSources] =
-    useCatalogSourcesWithPolling(catalogAPIState);
+    useAgentCatalogSourcesWithPolling(catalogAPIState);
 
   const contextValue = React.useMemo(
     () => ({
