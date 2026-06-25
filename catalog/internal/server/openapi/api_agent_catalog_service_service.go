@@ -154,7 +154,7 @@ func (s *AgentCatalogServiceAPIService) PreviewAgentCatalogSource(ctx context.Co
 		return ErrorResponse(http.StatusUnprocessableEntity, fmt.Errorf("failed to load agents: %w", err)), err
 	}
 
-	var filteredResults []model.ModelPreviewResult
+	filteredResults := make([]model.ModelPreviewResult, 0)
 	for _, result := range previewResults {
 		item := model.ModelPreviewResult{Name: result.Name, Included: result.Included}
 		switch filterStatus {
