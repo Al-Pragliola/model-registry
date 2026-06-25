@@ -405,3 +405,42 @@ func (m *ModelCatalogClientMock) GetMcpServersTools(client httpclient.HTTPClient
 
 	return &mcpServerTools, nil
 }
+
+func (m *ModelCatalogClientMock) GetAllAgents(client httpclient.HTTPClientInterface, pageValues url.Values) (*models.AgentList, error) {
+	agents := GetAgentMocks()
+
+	return &models.AgentList{
+		Items:    agents,
+		Size:     int32(len(agents)),
+		PageSize: 10,
+	}, nil
+}
+
+func (m *ModelCatalogClientMock) GetAgentsFilter(client httpclient.HTTPClientInterface) (*models.FilterOptionsList, error) {
+	filterOptions := GetAgentFilterOptionsListMock()
+	return &filterOptions, nil
+}
+
+func (m *ModelCatalogClientMock) GetAgent(client httpclient.HTTPClientInterface, agentId string, pageValues url.Values) (*models.Agent, error) {
+	allAgents := GetAgentMocks()
+	for i := range allAgents {
+		if allAgents[i].ID == agentId {
+			return &allAgents[i], nil
+		}
+	}
+	return nil, fmt.Errorf("agent id doesn't exist: %s", agentId)
+}
+
+func (m *ModelCatalogClientMock) CreateAgentSourcePreview(client httpclient.HTTPClientInterface, payload models.CatalogSourcePreviewRequest, pageValues url.Values) (*models.CatalogSourcePreviewResult, error) {
+	return &models.CatalogSourcePreviewResult{
+		Items: []models.CatalogSourcePreviewModel{
+			{Name: "mock-agent-1", Included: true},
+			{Name: "mock-agent-2", Included: false},
+		},
+		Summary: models.CatalogSourcePreviewSummary{
+			TotalModels:    2,
+			IncludedModels: 1,
+			ExcludedModels: 1,
+		},
+	}, nil
+}

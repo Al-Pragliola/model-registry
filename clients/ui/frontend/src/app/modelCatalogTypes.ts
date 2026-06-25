@@ -33,6 +33,7 @@ import {
   McpServerListParams,
   McpToolList,
 } from './mcpServerCatalogTypes';
+import { Agent, AgentList, AgentListParams } from './agentCatalogTypes';
 
 export type HardwareConfiguration = {
   gpu_type: string;
@@ -256,6 +257,12 @@ export type GetMcpServer = (opts: APIOptions, serverId: string) => Promise<McpSe
 
 export type GetMcpServerToolList = (opts: APIOptions, serverId: string) => Promise<McpToolList>;
 
+export type GetAgentList = (opts: APIOptions, listParams?: AgentListParams) => Promise<AgentList>;
+
+export type GetAgentFilterOptionList = (opts: APIOptions) => Promise<CatalogFilterOptionsList>;
+
+export type GetAgent = (opts: APIOptions, agentId: string) => Promise<Agent>;
+
 export type CatalogBaseAPIs = {
   getListSources: GetListSources;
   getCatalogLabels: GetCatalogLabels;
@@ -276,7 +283,16 @@ export type McpCatalogSpecificAPIs = {
   getMcpServerToolList: GetMcpServerToolList;
 };
 
-export type ModelCatalogAPIs = CatalogBaseAPIs & ModelCatalogSpecificAPIs & McpCatalogSpecificAPIs;
+export type AgentCatalogSpecificAPIs = {
+  getAgentList: GetAgentList;
+  getAgentFilterOptionList: GetAgentFilterOptionList;
+  getAgent: GetAgent;
+};
+
+export type ModelCatalogAPIs = CatalogBaseAPIs &
+  ModelCatalogSpecificAPIs &
+  McpCatalogSpecificAPIs &
+  AgentCatalogSpecificAPIs;
 
 export type CatalogModelDetailsParams = {
   sourceId?: string;

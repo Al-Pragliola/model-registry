@@ -19,6 +19,7 @@ const (
 const (
 	AssetTypeModels     = "models"
 	AssetTypeMCPServers = "mcp_servers"
+	AssetTypeAgents     = "agents"
 )
 
 // CommonSourceFields holds the fields shared between ModelSource and MCPSource
@@ -216,5 +217,32 @@ func (s PluginSource) GetId() string {
 
 // IsEnabled returns true if the source is enabled.
 func (s PluginSource) IsEnabled() bool {
+	return s.Enabled == nil || *s.Enabled
+}
+
+// AgentSource represents a source of agent catalog entries
+type AgentSource struct {
+	Name       string                      `json:"name" yaml:"name"`
+	ID         string                      `json:"id" yaml:"id"`
+	Type       string                      `json:"type" yaml:"type"`
+	Enabled    *bool                       `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Properties map[string]any              `json:"properties" yaml:"properties"`
+	Labels     []string                    `json:"labels" yaml:"labels"`
+	AssetType  *apimodels.CatalogAssetType `json:"assetType,omitempty" yaml:"assetType,omitempty"`
+
+	IncludedAgents []string `json:"includedAgents,omitempty" yaml:"includedAgents,omitempty"`
+	ExcludedAgents []string `json:"excludedAgents,omitempty" yaml:"excludedAgents,omitempty"`
+
+	// Origin is the absolute path of the config file this source was loaded from.
+	Origin string `json:"-" yaml:"-"`
+}
+
+// GetId returns the ID of the source.
+func (s AgentSource) GetId() string {
+	return s.ID
+}
+
+// IsEnabled returns true if the source is enabled.
+func (s *AgentSource) IsEnabled() bool {
 	return s.Enabled == nil || *s.Enabled
 }

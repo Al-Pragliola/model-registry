@@ -43,6 +43,8 @@ k8s_resource(
     new_name="ui-rbac-reqs",
     objects=[
         "devenv-cluster-admin:clusterrolebinding",
+        "model-registry-ui-configmaps-manager:clusterrole",
+        "model-registry-ui-configmaps-manager-binding:clusterrolebinding",
     ],
     labels="requirements",
 )

@@ -1,6 +1,7 @@
 package agentcatalog
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/kubeflow/hub/catalog/internal/catalog/basecatalog"
@@ -8,7 +9,7 @@ import (
 
 type agentOriginEntry struct {
 	origin  string
-	sources map[string]basecatalog.PluginSource
+	sources map[string]basecatalog.AgentSource
 }
 
 // AgentSourceCollection manages agent catalog sources from multiple origins with priority-based merging.
@@ -27,7 +28,7 @@ func NewAgentSourceCollection(originOrder ...string) *AgentSourceCollection {
 	}
 }
 
-func (sc *AgentSourceCollection) Merge(origin string, sources map[string]basecatalog.PluginSource) error {
+func (sc *AgentSourceCollection) Merge(origin string, sources map[string]basecatalog.AgentSource) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
@@ -42,8 +43,8 @@ func (sc *AgentSourceCollection) Merge(origin string, sources map[string]basecat
 	return nil
 }
 
-func (sc *AgentSourceCollection) merged() map[string]basecatalog.PluginSource {
-	result := map[string]basecatalog.PluginSource{}
+func (sc *AgentSourceCollection) merged() map[string]basecatalog.AgentSource {
+	result := map[string]basecatalog.AgentSource{}
 
 	for _, entry := range sc.entries {
 		for id, source := range entry.sources {
@@ -62,7 +63,7 @@ func (sc *AgentSourceCollection) merged() map[string]basecatalog.PluginSource {
 	return result
 }
 
-func mergeAgentSources(base, override basecatalog.PluginSource) basecatalog.PluginSource {
+func mergeAgentSources(base, override basecatalog.AgentSource) basecatalog.AgentSource {
 	result := base
 
 	common := basecatalog.MergeCommonSourceFields(
@@ -75,11 +76,21 @@ func mergeAgentSources(base, override basecatalog.PluginSource) basecatalog.Plug
 	result.Type = common.Type
 	result.Properties = common.Properties
 	result.Origin = common.Origin
+	if common.AssetType != nil {
+		result.AssetType = common.AssetType
+	}
+
+	if override.IncludedAgents != nil {
+		result.IncludedAgents = override.IncludedAgents
+	}
+	if override.ExcludedAgents != nil {
+		result.ExcludedAgents = override.ExcludedAgents
+	}
 
 	return result
 }
 
-func applyAgentDefaults(source basecatalog.PluginSource) basecatalog.PluginSource {
+func applyAgentDefaults(source basecatalog.AgentSource) basecatalog.AgentSource {
 	if source.Enabled == nil {
 		source.Enabled = new(true)
 	}
@@ -89,9 +100,53 @@ func applyAgentDefaults(source basecatalog.PluginSource) basecatalog.PluginSourc
 	return source
 }
 
-func (sc *AgentSourceCollection) AllSources() map[string]basecatalog.PluginSource {
+func (sc *AgentSourceCollection) AllSources() map[string]basecatalog.AgentSource {
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
 	return sc.merged()
+}
+
+// ByLabel returns enabled sources that have any of the labels provided.
+// If a label is "null", every source without a label is returned.
+func (sc *AgentSourceCollection) ByLabel(labels []string) []basecatalog.AgentSource {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	labelMap := make(map[string]struct{}, len(labels))
+	for _, label := range labels {
+		labelMap[strings.ToLower(label)] = struct{}{}
+	}
+
+	matches := map[string]basecatalog.AgentSource{}
+	sources := sc.merged()
+
+	if _, hasNull := labelMap["null"]; hasNull {
+		for id, source := range sources {
+			if source.Enabled == nil || !*source.Enabled {
+				continue
+			}
+			if len(source.Labels) == 0 {
+				matches[id] = source
+			}
+		}
+	}
+
+	for id, source := range sources {
+		if source.Enabled == nil || !*source.Enabled {
+			continue
+		}
+		for _, label := range source.Labels {
+			if _, match := labelMap[strings.ToLower(label)]; match {
+				matches[id] = source
+				break
+			}
+		}
+	}
+
+	result := make([]basecatalog.AgentSource, 0, len(matches))
+	for _, source := range matches {
+		result = append(result, source)
+	}
+	return result
 }

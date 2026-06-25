@@ -10,6 +10,8 @@ type CatalogSourceConfig struct {
 	AllowedOrganization *string  `json:"allowedOrganization,omitempty"`
 	IncludedModels      []string `json:"includedModels,omitempty"`
 	ExcludedModels      []string `json:"excludedModels,omitempty"`
+	IncludedAgents      []string `json:"includedAgents,omitempty"`
+	ExcludedAgents      []string `json:"excludedAgents,omitempty"`
 	IsDefault           *bool    `json:"isDefault,omitempty"`
 	Yaml                *string  `json:"yaml,omitempty"`
 	YamlCatalogPath     *string  `json:"yamlCatalogPath,omitempty"`

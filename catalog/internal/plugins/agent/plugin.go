@@ -88,9 +88,13 @@ func (p *Plugin) Init(_ context.Context, cfg plugin.Config) error {
 	return nil
 }
 
+func (p *Plugin) AgentSources() *agentcatalog.AgentSourceCollection {
+	return p.loader.Sources
+}
+
 func (p *Plugin) RegisterRoutes(router chi.Router) error {
 	provider := agentcatalog.NewDBAgentCatalog(p.services, p.loader.Sources)
-	svc := openapi.NewAgentCatalogServiceAPIService(provider)
+	svc := openapi.NewAgentCatalogServiceAPIService(provider, p.loader.Sources)
 	ctrl := openapi.NewAgentCatalogServiceAPIController(svc)
 
 	for _, route := range ctrl.OrderedRoutes() {

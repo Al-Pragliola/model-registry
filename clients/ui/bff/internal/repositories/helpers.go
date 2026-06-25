@@ -85,51 +85,77 @@ func UrlWithPageParams(url string, values url.Values) string {
 	return UrlWithParams(url, pageValues)
 }
 
+const (
+	SectionKeyCatalogs      = "catalogs"
+	SectionKeyAgentCatalogs = "agent_catalogs"
+)
+
 func ParseCatalogYaml(raw string, isDefault bool) ([]models.CatalogSourceConfig, error) {
-	// Internal struct to match YAML structure
-	var parsed struct {
-		Catalogs []struct {
-			Name           string                 `yaml:"name"`
-			Id             string                 `yaml:"id"`
-			Type           string                 `yaml:"type"`
-			Enabled        *bool                  `yaml:"enabled"`
-			Properties     map[string]interface{} `yaml:"properties"`
-			Labels         []string               `yaml:"labels"`
-			IncludedModels []string               `yaml:"includedModels"`
-			ExcludedModels []string               `yaml:"excludedModels"`
-		} `yaml:"catalogs"`
+	return ParseCatalogYamlSection(raw, isDefault, SectionKeyCatalogs)
+}
+
+func ParseCatalogYamlSection(raw string, isDefault bool, sectionKey string) ([]models.CatalogSourceConfig, error) {
+	var fullDoc map[string]interface{}
+	if err := yaml.Unmarshal([]byte(raw), &fullDoc); err != nil {
+		return nil, fmt.Errorf("failed to parse yaml: %w", err)
 	}
 
-	if err := yaml.Unmarshal([]byte(raw), &parsed); err != nil {
-		return nil, fmt.Errorf("failed to parse catalogs yaml: %w", err)
+	sectionRaw, ok := fullDoc[sectionKey]
+	if !ok {
+		return []models.CatalogSourceConfig{}, nil
 	}
 
-	catalogs := make([]models.CatalogSourceConfig, 0, len(parsed.Catalogs))
-	for _, c := range parsed.Catalogs {
-		entry := models.CatalogSourceConfig{
-			Id:             c.Id,
-			Name:           c.Name,
-			Type:           c.Type,
-			Enabled:        c.Enabled,
-			Labels:         c.Labels,
-			IsDefault:      &isDefault,
-			IncludedModels: c.IncludedModels,
-			ExcludedModels: c.ExcludedModels,
+	sectionList, ok := sectionRaw.([]interface{})
+	if !ok {
+		return []models.CatalogSourceConfig{}, nil
+	}
+
+	catalogs := make([]models.CatalogSourceConfig, 0, len(sectionList))
+	for _, item := range sectionList {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
 		}
 
-		if c.Properties != nil {
-			if apiKey, ok := c.Properties[ApiKey].(string); ok {
-				entry.ApiKey = &apiKey
-			}
+		entry := models.CatalogSourceConfig{
+			Id:        getStringFromMap(itemMap, "id"),
+			Name:      getStringFromMap(itemMap, "name"),
+			Type:      getStringFromMap(itemMap, "type"),
+			IsDefault: &isDefault,
+		}
 
-			if allowedOrganization, ok := c.Properties["allowedOrganization"].(string); ok {
+		if enabled, ok := itemMap["enabled"]; ok {
+			if b, ok := enabled.(bool); ok {
+				entry.Enabled = &b
+			}
+		}
+
+		if labels, ok := itemMap["labels"]; ok {
+			entry.Labels = ExtractStringSlice(labels)
+		}
+
+		entry.IncludedModels = ExtractStringSlice(itemMap["includedModels"])
+		entry.ExcludedModels = ExtractStringSlice(itemMap["excludedModels"])
+		entry.IncludedAgents = ExtractStringSlice(itemMap["includedAgents"])
+		entry.ExcludedAgents = ExtractStringSlice(itemMap["excludedAgents"])
+
+		if props, ok := itemMap["properties"].(map[string]interface{}); ok {
+			if allowedOrganization, ok := props["allowedOrganization"].(string); ok {
 				entry.AllowedOrganization = &allowedOrganization
 			}
 		}
+
 		catalogs = append(catalogs, entry)
 	}
 
 	return catalogs, nil
+}
+
+func getStringFromMap(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
 }
 
 func ExtractStringSlice(value interface{}) []string {
@@ -150,48 +176,23 @@ func ExtractStringSlice(value interface{}) []string {
 }
 
 func FindCatalogSourceById(sourceYAML string, catalogId string, isDefault bool) *models.CatalogSourceConfig {
+	return FindCatalogSourceByIdSection(sourceYAML, catalogId, isDefault, SectionKeyCatalogs)
+}
+
+func FindCatalogSourceByIdSection(sourceYAML string, catalogId string, isDefault bool, sectionKey string) *models.CatalogSourceConfig {
 	if sourceYAML == "" {
 		return nil
 	}
 
-	var parsed struct {
-		Catalogs []struct {
-			Id             string                 `yaml:"id"`
-			Name           string                 `yaml:"name"`
-			Type           string                 `yaml:"type"`
-			Enabled        *bool                  `yaml:"enabled"`
-			Labels         []string               `yaml:"labels"`
-			Properties     map[string]interface{} `yaml:"properties"`
-			IncludedModels []string               `yaml:"includedModels"`
-			ExcludedModels []string               `yaml:"excludedModels"`
-		} `yaml:"catalogs"`
-	}
-
-	if err := yaml.Unmarshal([]byte(sourceYAML), &parsed); err != nil {
+	configs, err := ParseCatalogYamlSection(sourceYAML, isDefault, sectionKey)
+	if err != nil {
 		return nil
 	}
 
-	for _, catalog := range parsed.Catalogs {
-		if catalog.Id == catalogId {
-			isDefaultVal := isDefault
-			result := &models.CatalogSourceConfig{
-				Id:             catalog.Id,
-				Name:           catalog.Name,
-				Type:           catalog.Type,
-				Enabled:        catalog.Enabled,
-				Labels:         catalog.Labels,
-				IsDefault:      &isDefaultVal,
-				IncludedModels: catalog.IncludedModels,
-				ExcludedModels: catalog.ExcludedModels,
-			}
-
-			if catalog.Properties != nil {
-				if org, ok := catalog.Properties["allowedOrganization"].(string); ok {
-					result.AllowedOrganization = &org
-				}
-			}
-
-			return result
+	for _, config := range configs {
+		if config.Id == catalogId {
+			c := config
+			return &c
 		}
 	}
 
@@ -235,25 +236,41 @@ func ConvertSourceConfigToYamlEntry(payload models.CatalogSourceConfigPayload,
 	if len(payload.ExcludedModels) > 0 {
 		entry["excludedModels"] = payload.ExcludedModels
 	}
+	if len(payload.IncludedAgents) > 0 {
+		entry["includedAgents"] = payload.IncludedAgents
+	}
+	if len(payload.ExcludedAgents) > 0 {
+		entry["excludedAgents"] = payload.ExcludedAgents
+	}
 
 	return entry
 }
 
 func AppendCatalogSourceToYaml(existingConfigMapEntry string, newEntry map[string]interface{}) (string, error) {
-	var parsed struct {
-		Catalogs []map[string]interface{} `yaml:"catalogs"`
-	}
+	return AppendCatalogSourceToYamlSection(existingConfigMapEntry, newEntry, SectionKeyCatalogs)
+}
 
+func AppendCatalogSourceToYamlSection(existingConfigMapEntry string, newEntry map[string]interface{}, sectionKey string) (string, error) {
+	var fullDoc map[string]interface{}
 	if existingConfigMapEntry != "" {
-		if err := yaml.Unmarshal([]byte(existingConfigMapEntry), &parsed); err != nil {
+		if err := yaml.Unmarshal([]byte(existingConfigMapEntry), &fullDoc); err != nil {
 			return "", fmt.Errorf("failed to parse existing sources.yaml: %w", err)
 		}
-	} else {
-		parsed.Catalogs = []map[string]interface{}{}
 	}
-	parsed.Catalogs = append(parsed.Catalogs, newEntry)
+	if fullDoc == nil {
+		fullDoc = make(map[string]interface{})
+	}
 
-	updatedBytes, err := yaml.Marshal(parsed)
+	var sectionList []interface{}
+	if existing, ok := fullDoc[sectionKey]; ok {
+		if list, ok := existing.([]interface{}); ok {
+			sectionList = list
+		}
+	}
+	sectionList = append(sectionList, newEntry)
+	fullDoc[sectionKey] = sectionList
+
+	updatedBytes, err := yaml.Marshal(fullDoc)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated sources.yaml: %w", err)
 	}
@@ -262,23 +279,35 @@ func AppendCatalogSourceToYaml(existingConfigMapEntry string, newEntry map[strin
 }
 
 func RemoveCatalogSourceFromYAML(existingYAML string, sourceId string) (string, error) {
-	var parsed struct {
-		Catalogs []map[string]interface{} `yaml:"catalogs"`
-	}
+	return RemoveCatalogSourceFromYAMLSection(existingYAML, sourceId, SectionKeyCatalogs)
+}
 
-	if err := yaml.Unmarshal([]byte(existingYAML), &parsed); err != nil {
+func RemoveCatalogSourceFromYAMLSection(existingYAML string, sourceId string, sectionKey string) (string, error) {
+	var fullDoc map[string]interface{}
+	if err := yaml.Unmarshal([]byte(existingYAML), &fullDoc); err != nil {
 		return "", fmt.Errorf("failed to parse sources.yaml: %w", err)
 	}
 
-	filteredCatalogs := make([]map[string]interface{}, 0)
-	for _, catalogSource := range parsed.Catalogs {
-		if id, ok := catalogSource["id"].(string); ok && id != sourceId {
-			filteredCatalogs = append(filteredCatalogs, catalogSource)
+	sectionRaw, ok := fullDoc[sectionKey]
+	if !ok {
+		return existingYAML, nil
+	}
+	sectionList, ok := sectionRaw.([]interface{})
+	if !ok {
+		return existingYAML, nil
+	}
+
+	filtered := make([]interface{}, 0)
+	for _, item := range sectionList {
+		if itemMap, ok := item.(map[string]interface{}); ok {
+			if id, ok := itemMap["id"].(string); ok && id != sourceId {
+				filtered = append(filtered, item)
+			}
 		}
 	}
 
-	parsed.Catalogs = filteredCatalogs
-	updatedBytes, err := yaml.Marshal(parsed)
+	fullDoc[sectionKey] = filtered
+	updatedBytes, err := yaml.Marshal(fullDoc)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated sources.yaml: %w", err)
 	}
@@ -287,21 +316,39 @@ func RemoveCatalogSourceFromYAML(existingYAML string, sourceId string) (string, 
 }
 
 func FindCatalogSourceProperties(sourceYAML string, sourceId string) (secretName string, yamlPath string) {
-	var parsed struct {
-		Catalogs []struct {
-			Id         string                 `yaml:"id"`
-			Properties map[string]interface{} `yaml:"properties"`
-		} `yaml:"catalogs"`
-	}
+	return FindCatalogSourcePropertiesSection(sourceYAML, sourceId, SectionKeyCatalogs)
+}
 
-	if err := yaml.Unmarshal([]byte(sourceYAML), &parsed); err != nil {
+func FindCatalogSourcePropertiesSection(sourceYAML string, sourceId string, sectionKey string) (secretName string, yamlPath string) {
+	if sourceYAML == "" {
 		return "", ""
 	}
 
-	for _, catalogSource := range parsed.Catalogs {
-		if catalogSource.Id == sourceId && catalogSource.Properties != nil {
-			secretName, _ = catalogSource.Properties[ApiKey].(string)
-			yamlPath, _ = catalogSource.Properties["yamlCatalogPath"].(string)
+	var fullDoc map[string]interface{}
+	if err := yaml.Unmarshal([]byte(sourceYAML), &fullDoc); err != nil {
+		return "", ""
+	}
+
+	sectionRaw, ok := fullDoc[sectionKey]
+	if !ok {
+		return "", ""
+	}
+	sectionList, ok := sectionRaw.([]interface{})
+	if !ok {
+		return "", ""
+	}
+
+	for _, item := range sectionList {
+		itemMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := itemMap["id"].(string)
+		if id == sourceId {
+			if props, ok := itemMap["properties"].(map[string]interface{}); ok {
+				secretName, _ = props[ApiKey].(string)
+				yamlPath, _ = props["yamlCatalogPath"].(string)
+			}
 			return
 		}
 	}
@@ -315,20 +362,41 @@ func UpdateCatalogSourceInYAML(
 	secretName string,
 	yamlFilePath string,
 ) (string, error) {
-	var parsed struct {
-		Catalogs []map[string]interface{} `yaml:"catalogs"`
-	}
+	return UpdateCatalogSourceInYAMLSection(existingYAML, catalogId, payload, secretName, yamlFilePath, SectionKeyCatalogs)
+}
 
+func UpdateCatalogSourceInYAMLSection(
+	existingYAML string,
+	catalogId string,
+	payload models.CatalogSourceConfigPayload,
+	secretName string,
+	yamlFilePath string,
+	sectionKey string,
+) (string, error) {
 	if existingYAML == "" {
 		return "", fmt.Errorf("no existing yaml to update")
 	}
 
-	if err := yaml.Unmarshal([]byte(existingYAML), &parsed); err != nil {
+	var fullDoc map[string]interface{}
+	if err := yaml.Unmarshal([]byte(existingYAML), &fullDoc); err != nil {
 		return "", fmt.Errorf("failed to parse sources.yaml: %w", err)
 	}
 
+	sectionRaw, ok := fullDoc[sectionKey]
+	if !ok {
+		return "", fmt.Errorf("section '%s' not found in yaml", sectionKey)
+	}
+	sectionList, ok := sectionRaw.([]interface{})
+	if !ok {
+		return "", fmt.Errorf("section '%s' is not a list", sectionKey)
+	}
+
 	found := false
-	for i, catalogSource := range parsed.Catalogs {
+	for i, item := range sectionList {
+		catalogSource, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
 		if id, ok := catalogSource["id"].(string); ok && id == catalogId {
 			found = true
 
@@ -361,6 +429,20 @@ func UpdateCatalogSourceInYAML(
 					delete(catalogSource, "excludedModels")
 				}
 			}
+			if payload.IncludedAgents != nil {
+				if len(payload.IncludedAgents) > 0 {
+					catalogSource["includedAgents"] = payload.IncludedAgents
+				} else {
+					delete(catalogSource, "includedAgents")
+				}
+			}
+			if payload.ExcludedAgents != nil {
+				if len(payload.ExcludedAgents) > 0 {
+					catalogSource["excludedAgents"] = payload.ExcludedAgents
+				} else {
+					delete(catalogSource, "excludedAgents")
+				}
+			}
 			if payload.AllowedOrganization != nil {
 				properties["allowedOrganization"] = *payload.AllowedOrganization
 			}
@@ -375,7 +457,7 @@ func UpdateCatalogSourceInYAML(
 				catalogSource["properties"] = properties
 			}
 
-			parsed.Catalogs[i] = catalogSource
+			sectionList[i] = catalogSource
 			break
 		}
 	}
@@ -384,7 +466,8 @@ func UpdateCatalogSourceInYAML(
 		return "", fmt.Errorf("catalog '%s' not found in yaml", catalogId)
 	}
 
-	updatedBytes, err := yaml.Marshal(parsed)
+	fullDoc[sectionKey] = sectionList
+	updatedBytes, err := yaml.Marshal(fullDoc)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal updated sources.yaml: %w", err)
 	}
@@ -406,6 +489,12 @@ func BuildOverrideEntryForDefaultSource(catalogId string, payload models.Catalog
 	}
 	if len(payload.ExcludedModels) > 0 {
 		entry["excludedModels"] = payload.ExcludedModels
+	}
+	if len(payload.IncludedAgents) > 0 {
+		entry["includedAgents"] = payload.IncludedAgents
+	}
+	if len(payload.ExcludedAgents) > 0 {
+		entry["excludedAgents"] = payload.ExcludedAgents
 	}
 
 	return entry

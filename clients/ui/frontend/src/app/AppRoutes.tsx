@@ -7,13 +7,20 @@ import ModelRegistrySettingsRoutes from './pages/settings/ModelRegistrySettingsR
 import ModelRegistryRoutes from './pages/modelRegistry/ModelRegistryRoutes';
 import ModelCatalogRoutes from './pages/modelCatalog/ModelCatalogRoutes';
 import McpCatalogRoutes from './pages/mcpCatalog/McpCatalogRoutes';
+import AgentCatalogRoutes from './pages/agentCatalog/AgentCatalogRoutes';
 import ModelCatalogSettingsRoutes from './pages/modelCatalogSettings/ModelCatalogSettingsRoutes';
+import AgentCatalogSettingsRoutes from './pages/agentCatalogSettings/AgentCatalogSettingsRoutes';
 import { modelCatalogUrl } from './routes/modelCatalog/catalogModel';
 import { mcpCatalogUrl } from './routes/mcpCatalog/mcpCatalog';
+import { agentCatalogUrl } from './routes/agentCatalog/agentCatalog';
 import {
   catalogSettingsUrl,
   CATALOG_SETTINGS_PAGE_TITLE,
 } from './routes/modelCatalogSettings/modelCatalogSettings';
+import {
+  agentCatalogSettingsUrl,
+  AGENT_CATALOG_SETTINGS_PAGE_TITLE,
+} from './routes/agentCatalogSettings/agentCatalogSettings';
 import { modelRegistryUrl } from './pages/modelRegistry/screens/routeUtils';
 import useUser from './hooks/useUser';
 
@@ -32,6 +39,7 @@ export const useAdminSettings = (): NavDataItem[] => {
   // Only show Model Catalog Settings in Standalone or Federated mode
   if (isStandalone || isFederated) {
     settingsChildren.push({ label: CATALOG_SETTINGS_PAGE_TITLE, path: catalogSettingsUrl() });
+    settingsChildren.push({ label: AGENT_CATALOG_SETTINGS_PAGE_TITLE, path: agentCatalogSettingsUrl() });
   }
 
   return [
@@ -59,6 +67,7 @@ export const useNavData = (): NavDataItem[] => {
     baseNavItems.push(
       { label: 'Model Catalog', path: modelCatalogUrl() },
       { label: 'MCP Catalog', path: mcpCatalogUrl() },
+      { label: 'Agent Catalog', path: agentCatalogUrl() },
     );
   }
 
@@ -80,7 +89,9 @@ const AppRoutes: React.FC = () => {
         <>
           <Route path={`${modelCatalogUrl()}/*`} element={<ModelCatalogRoutes />} />
           <Route path={`${mcpCatalogUrl()}/*`} element={<McpCatalogRoutes />} />
+          <Route path={`${agentCatalogUrl()}/*`} element={<AgentCatalogRoutes />} />
           <Route path={`${catalogSettingsUrl()}/*`} element={<ModelCatalogSettingsRoutes />} />
+          <Route path={`${agentCatalogSettingsUrl()}/*`} element={<AgentCatalogSettingsRoutes />} />
         </>
       )}
       <Route path="*" element={<NotFound />} />

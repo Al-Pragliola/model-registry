@@ -60,6 +60,7 @@ func ValidateNamedQueries(namedQueries map[string]NamedQuery) error {
 	validAssetTypes := map[string]bool{
 		AssetTypeModels:     true,
 		AssetTypeMCPServers: true,
+		AssetTypeAgents:     true,
 	}
 
 	for queryName, nq := range namedQueries {

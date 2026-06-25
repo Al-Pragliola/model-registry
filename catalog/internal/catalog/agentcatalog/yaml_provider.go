@@ -48,7 +48,7 @@ type yamlAgentCatalog struct {
 	Agents []yamlAgent `yaml:"agents" json:"agents"`
 }
 
-func (l *AgentLoader) loadFromYAML(_ context.Context, sourceID string, source basecatalog.PluginSource) error {
+func (l *AgentLoader) loadFromYAML(_ context.Context, sourceID string, source basecatalog.AgentSource) error {
 	yamlPath, ok := source.Properties[yamlAgentCatalogPathKey].(string)
 	if !ok {
 		return fmt.Errorf("yamlCatalogPath property is required for YAML agent provider")
@@ -71,9 +71,19 @@ func (l *AgentLoader) loadFromYAML(_ context.Context, sourceID string, source ba
 
 	glog.Infof("loading %d agents from source %s", len(catalog.Agents), sourceID)
 
+	filter, err := NewAgentFilter(source.IncludedAgents, source.ExcludedAgents)
+	if err != nil {
+		return fmt.Errorf("invalid agent filter for source %s: %w", sourceID, err)
+	}
+
 	l.services.AgentRepository.DeleteBySource(sourceID)
 
 	for _, ya := range catalog.Agents {
+		if filter != nil && !filter.Allows(ya.Name) {
+			glog.V(2).Infof("agent %s excluded by filter in source %s", ya.Name, sourceID)
+			continue
+		}
+
 		agent := convertYAMLAgentToEntity(ya, sourceID)
 
 		_, err := l.services.AgentRepository.Save(agent)

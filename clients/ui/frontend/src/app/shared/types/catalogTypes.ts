@@ -21,7 +21,7 @@ export type PaginationParams = {
 
 export type CatalogSourceList = PaginationParams & { items?: CatalogSource[] };
 
-export type CatalogAssetType = 'models' | 'mcp_servers';
+export type CatalogAssetType = 'models' | 'mcp_servers' | 'agents';
 
 export type CatalogSourceListParams = {
   assetType?: CatalogAssetType;

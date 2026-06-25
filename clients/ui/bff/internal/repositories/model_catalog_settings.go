@@ -440,6 +440,14 @@ func mergeCatalogSourceConfigs(defaultCatalog models.CatalogSourceConfig, userCa
 		mergedSource.ExcludedModels = userCatalog.ExcludedModels
 	}
 
+	if userCatalog.IncludedAgents != nil {
+		mergedSource.IncludedAgents = userCatalog.IncludedAgents
+	}
+
+	if userCatalog.ExcludedAgents != nil {
+		mergedSource.ExcludedAgents = userCatalog.ExcludedAgents
+	}
+
 	if userCatalog.Yaml != nil {
 		mergedSource.Yaml = userCatalog.Yaml
 	}

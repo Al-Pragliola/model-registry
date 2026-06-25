@@ -4,6 +4,8 @@ type CatalogSourcePreviewRequest struct {
 	Type           string                 `json:"type"`
 	IncludedModels []string               `json:"includedModels,omitempty"`
 	ExcludedModels []string               `json:"excludedModels,omitempty"`
+	IncludedAgents []string               `json:"includedAgents,omitempty"`
+	ExcludedAgents []string               `json:"excludedAgents,omitempty"`
 	Properties     map[string]interface{} `json:"properties,omitempty"`
 }
 

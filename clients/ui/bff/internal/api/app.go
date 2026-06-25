@@ -89,6 +89,19 @@ const (
 	McpServerFilterOptionListPath = McpServerCatalogPathPrefix + "/mcp_servers_filter_options"
 	McpServerPath                 = McpServerListPath + "/:" + McpServerId
 	McpServersToolListPath        = McpServerPath + "/tools"
+
+	// Agent catalog
+	AgentId                     = "agent_id"
+	AgentCatalogPathPrefix      = ApiPathPrefix + "/agent_catalog"
+	AgentListPath               = AgentCatalogPathPrefix + "/agents"
+	AgentFilterOptionListPath   = AgentCatalogPathPrefix + "/agents_filter_options"
+	AgentPath                   = AgentListPath + "/:" + AgentId
+
+	// Agent catalog settings
+	AgentCatalogSettingsPathPrefix           = SettingsPath + "/agent_catalog"
+	AgentCatalogSettingsSourceConfigListPath = AgentCatalogSettingsPathPrefix + "/source_configs"
+	AgentCatalogSettingsSourceConfigPath     = AgentCatalogSettingsSourceConfigListPath + "/:" + CatalogSourceId
+	AgentCatalogSourcePreviewPath            = AgentCatalogPathPrefix + "/sources/preview"
 )
 
 type App struct {
@@ -323,6 +336,19 @@ func (app *App) Routes() http.Handler {
 		apiRouter.GET(McpServerFilterOptionListPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetMcpServersFiltersHandler)))
 		apiRouter.GET(McpServerPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetMcpServerHandler)))
 		apiRouter.GET(McpServersToolListPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetMcpServersToolsHandler)))
+
+		// Agent catalog endpoints
+		apiRouter.GET(AgentListPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetAllAgentsHandler)))
+		apiRouter.GET(AgentFilterOptionListPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetAgentFiltersHandler)))
+		apiRouter.GET(AgentPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.GetAgentHandler)))
+
+		// Agent catalog settings
+		apiRouter.GET(AgentCatalogSettingsSourceConfigListPath, app.AttachNamespace(app.GetAllAgentCatalogSourceConfigsHandler))
+		apiRouter.POST(AgentCatalogSettingsSourceConfigListPath, app.AttachNamespace(app.CreateAgentCatalogSourceConfigHandler))
+		apiRouter.GET(AgentCatalogSettingsSourceConfigPath, app.AttachNamespace(app.GetAgentCatalogSourceConfigHandler))
+		apiRouter.PATCH(AgentCatalogSettingsSourceConfigPath, app.AttachNamespace(app.UpdateAgentCatalogSourceConfigHandler))
+		apiRouter.DELETE(AgentCatalogSettingsSourceConfigPath, app.AttachNamespace(app.DeleteAgentCatalogSourceConfigHandler))
+		apiRouter.POST(AgentCatalogSourcePreviewPath, app.AttachNamespace(app.AttachModelCatalogRESTClient(app.CreateAgentCatalogSourcePreviewHandler)))
 	}
 
 	// App Router

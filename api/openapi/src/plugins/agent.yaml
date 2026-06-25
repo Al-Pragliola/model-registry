@@ -102,6 +102,88 @@ paths:
           $ref: "#/components/responses/InternalServerError"
       operationId: findAgentSources
 
+  /api/agent_catalog/v1alpha1/sources/preview:
+    description: >-
+      Preview an agent catalog source configuration. Accepts a source definition
+      and returns a list of agents with their inclusion/exclusion status based on
+      the configured filters.
+    post:
+      summary: Preview agent catalog source configuration.
+      description: |-
+        Accepts an agent catalog source configuration and returns a list of agents
+        showing which would be included or excluded based on the configured filters.
+
+        **Two modes of operation:**
+
+        1. **Stateless mode (recommended for new sources):** Upload both `config` and
+           `catalogData` files. The agents are read from `catalogData`, enabling preview
+           before saving to the server.
+
+        2. **Path mode (for existing sources):** Upload only `config` with a `yamlCatalogPath`
+           property. The agents are read from the specified file path on the server.
+      tags:
+        - AgentCatalogService
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - config
+              properties:
+                config:
+                  type: string
+                  format: binary
+                  description: |-
+                    YAML file containing the agent catalog source configuration.
+                    Supports optional includedAgents and excludedAgents filter patterns
+                    using `*` wildcard (case-insensitive).
+                catalogData:
+                  type: string
+                  format: binary
+                  description: |-
+                    Optional YAML file containing the catalog data (agents).
+                    When provided, agents are read from this file instead of
+                    from the `yamlCatalogPath` in the config.
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: string
+          description: Maximum number of results to return.
+        - name: nextPageToken
+          in: query
+          schema:
+            type: string
+          description: Token for pagination.
+        - name: filterStatus
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - included
+              - excluded
+            default: all
+          description: Filter results by inclusion status.
+      responses:
+        "200":
+          $ref: "#/components/responses/AgentSourcePreviewResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Unprocessable entity - invalid config or catalog data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+      operationId: previewAgentCatalogSource
+
 # Parameters (pageSize, orderBy, etc.) and shared responses (BadRequest, etc.)
 # are provided by lib/common.yaml during spec assembly. Only plugin-specific
 # schemas and responses are defined here.
@@ -204,6 +286,20 @@ components:
               format: uri
               description: OCI artifact URI.
 
+    AgentPreviewResult:
+      description: Preview result for a single agent showing inclusion status.
+      type: object
+      required:
+        - name
+        - included
+      properties:
+        name:
+          type: string
+          description: Agent name.
+        included:
+          type: boolean
+          description: Whether this agent would be included based on the configured filters.
+
     AgentList:
       description: A list of agent entities.
       type: object
@@ -232,3 +328,25 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Agent"
+    AgentSourcePreviewResponse:
+      description: Preview results for an agent catalog source configuration.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              agents:
+                description: Array of agent preview results.
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentPreviewResult"
+              summary:
+                description: Summary of the preview results.
+                type: object
+                properties:
+                  totalCount:
+                    type: integer
+                  includedCount:
+                    type: integer
+                  excludedCount:
+                    type: integer

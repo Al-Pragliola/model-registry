@@ -9,6 +9,7 @@ type Repositories struct {
 	ModelRegistryClient            ModelRegistryClientInterface
 	ModelCatalogClient             ModelCatalogClientInterface
 	ModelCatalogSettingsRepository *ModelCatalogSettingsRepository
+	AgentCatalogSettingsRepository *AgentCatalogSettingsRepository
 	User                           *UserRepository
 	Namespace                      *NamespaceRepository
 }
@@ -21,7 +22,8 @@ func NewRepositories(modelRegistryClient ModelRegistryClientInterface, modelCata
 		ModelCatalogClient:             modelCatalogClient,
 		ModelRegistrySettings:          NewModelRegistrySettingsRepository(),
 		ModelRegistryClient:            modelRegistryClient,
-		ModelCatalogSettingsRepository: NewModelCatalogSettingsRepository(),
+		ModelCatalogSettingsRepository:  NewModelCatalogSettingsRepository(),
+		AgentCatalogSettingsRepository: NewAgentCatalogSettingsRepository(),
 		User:                           NewUserRepository(),
 		Namespace:                      NewNamespaceRepository(),
 	}

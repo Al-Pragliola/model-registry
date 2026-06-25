@@ -1,0 +1,20 @@
+source: Agent Catalog
+agents:
+- name: conversational-agent
+  description: A general-purpose conversational agent for customer support.
+  framework: langchain
+  agentType: conversational
+  tags:
+    - customer-support
+    - conversational
+  models:
+    - gpt-4
+    - mistral-7b
+  repositoryUrl: https://github.com/example/conversational-agent
+  env:
+    - name: OPENAI_API_KEY
+      required: true
+    - name: TEMPERATURE
+      required: false
+  artifacts:
+    - uri: https://example.com/agents/conversational-agent/v1.0.0

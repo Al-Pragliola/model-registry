@@ -23,6 +23,14 @@ catalogs:
     properties:
       yamlCatalogPath: /testdata/nonexistent-catalog.yaml
 
+agent_catalogs:
+  - name: Test Agents
+    id: test_agents
+    type: yaml
+    enabled: true
+    properties:
+      yamlCatalogPath: /testdata/test-agents.yaml
+
 mcp_catalogs:
   - name: Test MCP Servers
     id: test_mcp_servers
@@ -38,6 +46,8 @@ labels:
     assetType: models
   - name: mcp-label
     assetType: mcp_servers
+  - name: agent-label
+    assetType: agents
 
 namedQueries:
   production_ready:

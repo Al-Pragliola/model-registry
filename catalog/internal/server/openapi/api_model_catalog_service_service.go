@@ -28,6 +28,7 @@ type ModelCatalogServiceAPIService struct {
 	provider         catalog.APIProvider
 	sources          *catalog.SourceCollection
 	mcpSources       *catalog.MCPSourceCollection
+	agentSources     *catalog.AgentSourceCollection
 	labels           *catalog.LabelCollection
 	sourceRepository models.CatalogSourceRepository
 }
@@ -381,6 +382,12 @@ func (m *ModelCatalogServiceAPIService) FindSources(ctx context.Context, name st
 		}
 	}
 
+	if m.agentSources != nil {
+		for id, agentSrc := range m.agentSources.AllSources() {
+			sources[id] = agentSourceToCatalogSource(agentSrc)
+		}
+	}
+
 	if len(sources) > math.MaxInt32 {
 		err := errors.New("too many registered sources")
 		return ErrorResponse(http.StatusInternalServerError, err), err
@@ -468,6 +475,19 @@ func mcpSourceToCatalogSource(src basecatalog.MCPSource) model.CatalogSource {
 	}
 	if src.AssetType != nil {
 		cs.AssetType = src.AssetType
+	}
+	return cs
+}
+
+// agentSourceToCatalogSource converts an internal AgentSource to the API CatalogSource type.
+func agentSourceToCatalogSource(src basecatalog.AgentSource) model.CatalogSource {
+	assetType := model.CATALOGASSETTYPE_AGENTS
+	cs := model.CatalogSource{
+		Id:        src.ID,
+		Name:      src.Name,
+		Enabled:   src.Enabled,
+		Labels:    src.Labels,
+		AssetType: &assetType,
 	}
 	return cs
 }
@@ -688,11 +708,12 @@ func genLabelCmpFunc(orderByKey string, sortOrder model.SortOrder) func(sortable
 var _ ModelCatalogServiceAPIServicer = &ModelCatalogServiceAPIService{}
 
 // NewModelCatalogServiceAPIService creates a default api service
-func NewModelCatalogServiceAPIService(provider catalog.APIProvider, sources *catalog.SourceCollection, mcpSources *catalog.MCPSourceCollection, labels *catalog.LabelCollection, sourceRepository models.CatalogSourceRepository) ModelCatalogServiceAPIServicer {
+func NewModelCatalogServiceAPIService(provider catalog.APIProvider, sources *catalog.SourceCollection, mcpSources *catalog.MCPSourceCollection, agentSources *catalog.AgentSourceCollection, labels *catalog.LabelCollection, sourceRepository models.CatalogSourceRepository) ModelCatalogServiceAPIServicer {
 	return &ModelCatalogServiceAPIService{
 		provider:         provider,
 		sources:          sources,
 		mcpSources:       mcpSources,
+		agentSources:     agentSources,
 		labels:           labels,
 		sourceRepository: sourceRepository,
 	}

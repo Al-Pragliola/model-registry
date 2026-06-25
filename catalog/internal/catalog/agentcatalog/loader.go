@@ -112,7 +112,7 @@ func (l *AgentLoader) parseAndMerge(path string) error {
 }
 
 func (l *AgentLoader) updateSources(path string, config *basecatalog.SourceConfig) error {
-	sources := make(map[string]basecatalog.PluginSource, len(config.AgentCatalogs))
+	sources := make(map[string]basecatalog.AgentSource, len(config.AgentCatalogs))
 
 	for _, source := range config.AgentCatalogs {
 		glog.Infof("reading agent catalog config type %s...", source.Type)

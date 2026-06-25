@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"github.com/kubeflow/hub/catalog/internal/catalog/agentcatalog"
 	"github.com/kubeflow/hub/catalog/internal/catalog/basecatalog"
 	"github.com/kubeflow/hub/catalog/internal/catalog/mcpcatalog"
 	"github.com/kubeflow/hub/catalog/internal/catalog/modelcatalog"
@@ -21,7 +22,10 @@ type (
 	ListPerformanceArtifactsParams = modelcatalog.ListPerformanceArtifactsParams
 
 	// MCP catalog types
-	MCPSourceCollection      = mcpcatalog.MCPSourceCollection
+	MCPSourceCollection = mcpcatalog.MCPSourceCollection
+
+	// Agent catalog types
+	AgentSourceCollection = agentcatalog.AgentSourceCollection
 	MCPProvider              = mcpcatalog.MCPCatalogProvider
 	ListMCPServersParams     = mcpcatalog.ListMCPServersParams
 	ListMCPServerToolsParams = mcpcatalog.ListMCPServerToolsParams
@@ -40,4 +44,7 @@ var (
 var (
 	ParsePreviewConfig  = modelcatalog.ParsePreviewConfig
 	PreviewSourceModels = modelcatalog.PreviewSourceModels
+
+	ParseAgentPreviewConfig = agentcatalog.ParseAgentPreviewConfig
+	PreviewSourceAgents     = agentcatalog.PreviewSourceAgents
 )

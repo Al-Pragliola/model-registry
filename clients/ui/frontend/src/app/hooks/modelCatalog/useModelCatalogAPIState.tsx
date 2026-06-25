@@ -7,6 +7,11 @@ import {
   getMcpServerToolList,
 } from '~/app/api/mcpServerCatalog/service';
 import {
+  getAgentList,
+  getAgentFilterOptionList,
+  getAgent,
+} from '~/app/api/agentCatalog/service';
+import {
   getCatalogFilterOptionList,
   getCatalogLabels,
   getCatalogModel,
@@ -36,6 +41,9 @@ const useModelCatalogAPIState = (
       getMcpServerFilterOptionList: getMcpServerFilterOptionList(path, queryParameters),
       getMcpServer: getMcpServer(path, queryParameters),
       getMcpServerToolList: getMcpServerToolList(path, queryParameters),
+      getAgentList: getAgentList(path, queryParameters),
+      getAgentFilterOptionList: getAgentFilterOptionList(path, queryParameters),
+      getAgent: getAgent(path, queryParameters),
     }),
     [queryParameters],
   );
