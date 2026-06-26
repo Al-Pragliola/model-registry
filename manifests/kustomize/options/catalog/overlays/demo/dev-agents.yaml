@@ -1,0 +1,117 @@
+source: Organization Agents
+agents:
+  - name: conversational-assistant
+    displayName: Conversational Assistant
+    description: "A multi-turn conversational AI agent built with LangGraph for dialogue and tool use. Supports function calling, memory, and context management."
+    framework: langgraph
+    agentType: starter_kit
+    tags:
+      - conversational
+      - tool-use
+      - multi-turn
+    models:
+      - granite-3b
+      - granite-8b
+    repositoryUrl: "https://github.com/example/conversational-assistant"
+    readme: |
+      # Conversational Assistant
+
+      A multi-turn conversational AI agent built with **LangGraph**.
+
+      ## Features
+      - Multi-turn dialogue management
+      - Tool calling support
+      - Memory and context management
+
+      ## Quick Start
+      ```bash
+      pip install conversational-assistant
+      ```
+    env:
+      - name: OPENAI_API_KEY
+        required: true
+      - name: LOG_LEVEL
+        required: false
+    artifacts:
+      - uri: "oci://registry.example.com/agents/conversational-assistant:v1.0"
+    createTimeSinceEpoch: "1736510400000"
+    lastUpdateTimeSinceEpoch: "1738300800000"
+
+  - name: code-review-crew
+    displayName: Code Review Crew
+    description: "A collaborative crew of AI agents for automated code review, security scanning, and best practice analysis using CrewAI."
+    framework: crewai
+    agentType: starter_kit
+    tags:
+      - code-review
+      - automation
+      - devtools
+    models:
+      - granite-8b-code-instruct
+    repositoryUrl: "https://github.com/example/code-review-crew"
+    readme: |
+      # Code Review Crew
+
+      Automated code review powered by **CrewAI**.
+
+      ## Agents
+      - **Reviewer**: Analyzes code quality and patterns
+      - **Security Scanner**: Checks for vulnerabilities
+      - **Style Checker**: Ensures coding standards
+    env:
+      - name: GITHUB_TOKEN
+        required: true
+    artifacts:
+      - uri: "oci://registry.example.com/agents/code-review-crew:v2.1"
+    createTimeSinceEpoch: "1738300800000"
+    lastUpdateTimeSinceEpoch: "1739510400000"
+
+  - name: doc-processor
+    displayName: Document Processor
+    description: "An A2A-compatible agent for document processing, summarization, and information extraction from PDFs, Word documents, and web pages."
+    framework: a2a
+    agentType: starter_kit
+    tags:
+      - documents
+      - summarization
+      - a2a
+    models:
+      - granite-3b
+    repositoryUrl: "https://github.com/example/doc-processor"
+    readme: |
+      # Document Processor
+
+      An **A2A**-compatible agent for document processing and summarization.
+
+      ## Supported Formats
+      - PDF
+      - DOCX
+      - HTML / Web pages
+    env: []
+    artifacts:
+      - uri: "oci://registry.example.com/agents/doc-processor:v1.2"
+    createTimeSinceEpoch: "1739510400000"
+    lastUpdateTimeSinceEpoch: "1739510400000"
+
+  - name: research-navigator
+    displayName: Research Navigator
+    description: "An AutoGen-based multi-agent system for conducting research across multiple sources, synthesizing findings, and generating structured reports."
+    framework: autogen
+    agentType: starter_kit
+    tags:
+      - research
+      - multi-agent
+      - synthesis
+    models:
+      - granite-8b
+      - granite-3b
+    repositoryUrl: "https://github.com/example/research-navigator"
+    env:
+      - name: SEARCH_API_KEY
+        required: true
+      - name: MAX_SOURCES
+        required: false
+    artifacts:
+      - uri: "oci://registry.example.com/agents/research-navigator:v0.9"
+    createTimeSinceEpoch: "1739510400000"
+    lastUpdateTimeSinceEpoch: "1740200000000"
